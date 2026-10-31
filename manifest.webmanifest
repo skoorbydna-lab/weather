@@ -1,5 +1,5 @@
 {
-  "id": "/ride/",
+  "id": "/weather/",
   "name": "Ride Weather",
   "short_name": "Ride Weather",
   "description": "Cycling weather: wind, rain, model comparison and rain alerts",

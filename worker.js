@@ -7,7 +7,7 @@
 //   KV namespace binding:  STATE
 //   Variable  KEY          a secret password (the app and OwnTracks send it)
 //   Variable  PUSHOVER_USER / PUSHOVER_TOKEN  (or NTFY_TOPIC) – or fill in CONFIG below
-//   Variable  APP_URL      (optional) e.g. https://skoorbydna-lab.github.io/ride/
+//   Variable  APP_URL      (optional) e.g. https://skoorbydna-lab.github.io/weather/
 //   Variable  HOME_LAT / HOME_LON  (optional) used until a location has been sent
 // Cron trigger:  */10 * * * *
 
@@ -18,7 +18,7 @@ const CONFIG = {
   PUSHOVER_TOKEN: '',  // your Pushover app's API Token (from "Create an Application")
   NTFY_TOPIC: '',      // (alternative to Pushover) ntfy topic
   NTFY_TOKEN: '',      // (optional) ntfy access token
-  APP_URL: 'https://skoorbydna-lab.github.io/ride/',
+  APP_URL: 'https://skoorbydna-lab.github.io/weather/',
 };
 // ---------------------------------------------------------------------------------
 
