@@ -105,6 +105,10 @@ button,select,input{font:inherit;color:inherit}
 .switch input{width:18px;height:18px}
 .window{font-size:1.05rem;font-weight:700}
 .zoomable{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.crow{display:flex;justify-content:space-between;align-items:center}
+.grip{color:var(--muted);cursor:grab;touch-action:none;padding:4px 2px 4px 12px;display:flex;opacity:.8}
+.cblock{position:relative;border-radius:10px;transition:box-shadow .15s}
+.cblock.dragging{z-index:5;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,.45);transition:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
 .chip{border:1px solid var(--line);border-radius:999px;padding:.2em .7em;background:none;font-size:.8rem;cursor:pointer;color:var(--muted)}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -253,7 +257,7 @@ footer a{color:inherit}
       <div class="legend" id="cmpLegend"></div>
       <div class="chips" id="cmpPick"></div>
       <div id="cmpCharts"></div>
-      <div class="small muted" style="margin-top:4px">Pinch to zoom, drag to move · up to 14 days</div>
+      <div class="small muted" style="margin-top:4px">Pinch to zoom, drag to move · up to 14 days · drag ⠿ to reorder graphs</div>
       <div class="muted small" id="alertLine" style="margin-top:6px"></div>
       <div class="fold sub" data-fold="table">
         <button class="foldhead subhead" type="button"><span class="chev">▾</span> Data table – next 24 hours</button>
@@ -720,6 +724,10 @@ const CHARTS = [
   {id:'press', key:'pressure_msl',        label:()=>'Pressure (hPa)',     h:110, opts:{color:'#a78bfa'}},
 ];
 let PICK = store.get('cmpPick', ['wind','rain','temp']);
+let ORDER = store.get('cmpOrder', CHARTS.map(c=>c.id));
+CHARTS.forEach(c => { if(!ORDER.includes(c.id)) ORDER.push(c.id); });
+const ordered = () => ORDER.map(id => CHARTS.find(c=>c.id===id)).filter(Boolean);
+const GRIP = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>';
 
 function prepCompare(){
   const h = S.cmp.hourly, now = Date.now();
@@ -732,23 +740,56 @@ function prepCompare(){
 }
 
 function buildChartSlots(){
-  $('cmpPick').innerHTML = CHARTS.map(c=>`<button class="chip${PICK.includes(c.id)?' on':''}" data-c="${c.id}">${c.label().replace(/ \(.*\)/,'')}</button>`).join('');
+  $('cmpPick').innerHTML = ordered().map(c=>`<button class="chip${PICK.includes(c.id)?' on':''}" data-c="${c.id}">${c.label().replace(/ \(.*\)/,'')}</button>`).join('');
   $('cmpPick').querySelectorAll('.chip').forEach(b => b.onclick = () => {
     const id = b.dataset.c;
-    PICK = PICK.includes(id) ? PICK.filter(x=>x!==id) : CHARTS.filter(c=>PICK.includes(c.id)||c.id===id).map(c=>c.id);
+    PICK = PICK.includes(id) ? PICK.filter(x=>x!==id) : [...PICK, id];
     store.set('cmpPick', PICK); buildChartSlots(); drawCompareCharts();
   });
   const box = $('cmpCharts'); box.innerHTML = '';
-  CHARTS.filter(c=>PICK.includes(c.id)).forEach(c => {
-    box.insertAdjacentHTML('beforeend', `<div class="chartlbl" id="lbl_${c.id}">${c.label()}</div><svg id="cmp_${c.id}" class="zoomable" viewBox="0 0 360 ${c.h}" width="100%"></svg>`);
+  ordered().filter(c=>PICK.includes(c.id)).forEach(c => {
+    box.insertAdjacentHTML('beforeend', `<div class="cblock" data-c="${c.id}"><div class="chartlbl crow"><span id="lbl_${c.id}">${c.label()}</span><span class="grip" title="Drag to reorder">${GRIP}</span></div><svg id="cmp_${c.id}" class="zoomable" viewBox="0 0 360 ${c.h}" width="100%"></svg></div>`);
     attachZoom($('cmp_'+c.id), CZ, drawCompareCharts);
   });
+  box.querySelectorAll('.grip').forEach(g => attachDrag(g));
   if(!PICK.length) box.innerHTML = '<div class="muted small" style="padding:10px 0">Tap a chip above to show a graph.</div>';
+}
+
+// drag a graph by its grip to reorder
+function attachDrag(grip){
+  const box = $('cmpCharts');
+  let el = null, grab = 0;
+  const move = e => {
+    if(!el) return;
+    e.preventDefault();
+    const y = e.clientY, prev = el.previousElementSibling, next = el.nextElementSibling;
+    if(prev){ const r = prev.getBoundingClientRect(); if(y - grab < r.top + r.height/2) box.insertBefore(el, prev); }
+    if(next){ const r = next.getBoundingClientRect(); if(y - grab + el.offsetHeight > r.top + r.height/2) box.insertBefore(next, el); }
+    el.style.transform = 'none';
+    const top = el.getBoundingClientRect().top;
+    el.style.transform = `translateY(${y - grab - top}px)`;
+  };
+  const end = () => {
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
+    if(!el) return;
+    el.style.transform = ''; el.classList.remove('dragging'); el = null;
+    const shown = [...box.querySelectorAll('.cblock')].map(b=>b.dataset.c);
+    let k = 0; ORDER = ORDER.map(id => shown.includes(id) ? shown[k++] : id);   // shown graphs take the new order, hidden ones keep their slots
+    PICK = shown.concat(PICK.filter(id=>!shown.includes(id)));
+    store.set('cmpOrder', ORDER); store.set('cmpPick', PICK);
+    $('cmpPick').innerHTML = ''; buildChartSlots(); drawCompareCharts();
+  };
+  grip.addEventListener('pointerdown', e => {
+    e.preventDefault(); el = grip.closest('.cblock');
+    grab = e.clientY - el.getBoundingClientRect().top; el.classList.add('dragging');
+    window.addEventListener('pointermove', move, {passive:false});
+    window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+  });
 }
 
 function drawCompareCharts(){
   if(!CMP) return;
-  CHARTS.filter(c=>PICK.includes(c.id)).forEach(c => {
+  ordered().filter(c=>PICK.includes(c.id)).forEach(c => {
     if(!$('cmp_'+c.id)) return;
     $('lbl_'+c.id).textContent = c.label();
     cmpChart('cmp_'+c.id, CMP.series[c.id], {times:CMP.times, ...c.opts});
