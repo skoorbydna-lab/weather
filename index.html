@@ -105,6 +105,9 @@ button,select,input{font:inherit;color:inherit}
 .switch input{width:18px;height:18px}
 .window{font-size:1.05rem;font-weight:700}
 .zoomable{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:.2em .7em;background:none;font-size:.8rem;cursor:pointer;color:var(--muted)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .chartlbl{font-size:.75rem;font-weight:700;color:var(--muted);margin:10px 0 2px}
 footer{font-size:.75rem;color:var(--muted);text-align:center;margin-top:16px}
 footer a{color:inherit}
@@ -248,9 +251,8 @@ footer a{color:inherit}
         <button class="btn sm" id="cmpReset">Reset zoom</button>
       </div>
       <div class="legend" id="cmpLegend"></div>
-      <div class="chartlbl" id="lblWind">Wind</div><svg id="cmpWind" class="zoomable" viewBox="0 0 360 140" width="100%"></svg>
-      <div class="chartlbl">Rain (mm per hour)</div><svg id="cmpRain" class="zoomable" viewBox="0 0 360 110" width="100%"></svg>
-      <div class="chartlbl">Temperature (°C)</div><svg id="cmpTemp" class="zoomable" viewBox="0 0 360 120" width="100%"></svg>
+      <div class="chips" id="cmpPick"></div>
+      <div id="cmpCharts"></div>
       <div class="small muted" style="margin-top:4px">Pinch to zoom, drag to move · up to 14 days</div>
       <div class="muted small" id="alertLine" style="margin-top:6px"></div>
       <div class="fold sub" data-fold="table">
@@ -266,7 +268,7 @@ footer a{color:inherit}
     </h2>
     <div class="foldbody">
     <div class="scroll"><table class="hours" id="hourTable"></table></div>
-    <div class="muted small" style="margin-top:8px">Temp (feels like) · rain mm (chance) · wind speed, direction it comes <b>from</b> (gusts) – arrows point where it blows <b>to</b> · Hum = humidity · Cld = cloud cover · UV index · dot = ride rating.</div>
+    <div class="muted small" style="margin-top:8px">Temp (feels like) · rain mm (chance) · wind speed (gusts) – arrows point where the wind blows <b>to</b> · Hum = humidity · Cld = cloud cover · UV index · dot = ride rating.</div>
     </div>
   </section>
 
@@ -442,7 +444,7 @@ async function load(force){
   const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
     + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&forecast_days=14`
     + `&daily=sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant`;
-  const cmpUrl = `${API}?${common}&models=${MODELS.map(m=>m.id).join(',')}&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=14`;
+  const cmpUrl = `${API}?${common}&models=${MODELS.map(m=>m.id).join(',')}&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m,apparent_temperature,cloud_cover,relative_humidity_2m,pressure_msl&forecast_days=14`;
   const notice = $('notice'); notice.hidden = true;
   clearTimeout(S.retry);
   try{
@@ -615,7 +617,7 @@ function renderHourly(){
       <td class="ic">${WI(h.weather_code[i], h.is_day ? h.is_day[i] : 1, 24)}</td>
       <td><b>${te==null?'–':Math.round(te)+'°'}</b>${fe==null?'':`<br><span class="gust">(${Math.round(fe)}°)</span>`}</td>
       <td>${p>0?`<b style="color:var(--rain)">${p.toFixed(1)}</b>`:'<span class="muted">0</span>'}${pp!=null?`<br><span class="gust">(${pp}%)</span>`:''}</td>
-      <td class="wc">${arrowSvg(dir, windColour(w), 18)}<b style="color:${windColour(w)}">${fmtSpd(w)}</b> <span class="gust">${dirName(dir)}</span><br><span class="gust">(${fmtSpd(g)})</span></td>
+      <td class="wc">${arrowSvg(dir, windColour(w), 18)}<b style="color:${windColour(w)}">${fmtSpd(w)}</b><br><span class="gust">(${fmtSpd(g)})</span></td>
       <td class="x">${hum==null?'–':Math.round(hum)+'%'}</td>
       <td class="x">${cc==null?'–':Math.round(cc)+'%'}</td>
       <td class="x"><b style="color:${uvCol(uv)}">${uv==null?'–':Math.round(uv)}</b></td>
@@ -707,28 +709,58 @@ function cmpChart(svgId, series, opts){
 }
 
 let CMP = null;   // prepared series for the visible charts
+const CHARTS = [
+  {id:'wind',  key:'wind_speed_10m',      label:()=>`Wind (${S.unit})`,   h:140, opts:{zero:true, color:'#f59e0b'}, speed:true},
+  {id:'gust',  key:'wind_gusts_10m',      label:()=>`Gusts (${S.unit})`,  h:130, opts:{zero:true, color:'#ef4444'}, speed:true},
+  {id:'rain',  key:'precipitation',       label:()=>'Rain (mm per hour)', h:110, opts:{zero:true, bars:true, minTop:1, dp:1, color:'var(--rain)'}},
+  {id:'temp',  key:'temperature_2m',      label:()=>'Temperature (°C)',   h:120, opts:{color:'#f97316'}},
+  {id:'feels', key:'apparent_temperature',label:()=>'Feels like (°C)',    h:120, opts:{color:'#fb923c'}},
+  {id:'cloud', key:'cloud_cover',         label:()=>'Cloud cover (%)',    h:110, opts:{zero:true, color:'#cbd5e1'}},
+  {id:'hum',   key:'relative_humidity_2m',label:()=>'Humidity (%)',       h:110, opts:{zero:true, color:'#22d3ee'}},
+  {id:'press', key:'pressure_msl',        label:()=>'Pressure (hPa)',     h:110, opts:{color:'#a78bfa'}},
+];
+let PICK = store.get('cmpPick', ['wind','rain','temp']);
+
 function prepCompare(){
   const h = S.cmp.hourly, now = Date.now();
   let start = h.time.findIndex(t => toMs(t)+3600000 > now); if(start<0) start=0;
   const times = h.time.slice(start);
   const models = MODELS.filter(m => cmpArr(m.id,'temperature_2m').some(v=>v!=null));
-  const ser = key => models.map((m,k)=>({...m, k, v: cmpArr(m.id,key).slice(start).map(v=>v==null?null:(key.startsWith('wind_s')||key.startsWith('wind_g')?spd(v):v))}));
-  CMP = { start, times, models, wind:ser('wind_speed_10m'), rain:ser('precipitation'), temp:ser('temperature_2m') };
+  const ser = (key, speed) => models.map((m,k)=>({...m, k, v: cmpArr(m.id,key).slice(start).map(v=>v==null?null:(speed?spd(v):v))}));
+  CMP = { start, times, models, series:{} };
+  CHARTS.forEach(c => CMP.series[c.id] = ser(c.key, c.speed));
+}
+
+function buildChartSlots(){
+  $('cmpPick').innerHTML = CHARTS.map(c=>`<button class="chip${PICK.includes(c.id)?' on':''}" data-c="${c.id}">${c.label().replace(/ \(.*\)/,'')}</button>`).join('');
+  $('cmpPick').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    const id = b.dataset.c;
+    PICK = PICK.includes(id) ? PICK.filter(x=>x!==id) : CHARTS.filter(c=>PICK.includes(c.id)||c.id===id).map(c=>c.id);
+    store.set('cmpPick', PICK); buildChartSlots(); drawCompareCharts();
+  });
+  const box = $('cmpCharts'); box.innerHTML = '';
+  CHARTS.filter(c=>PICK.includes(c.id)).forEach(c => {
+    box.insertAdjacentHTML('beforeend', `<div class="chartlbl" id="lbl_${c.id}">${c.label()}</div><svg id="cmp_${c.id}" class="zoomable" viewBox="0 0 360 ${c.h}" width="100%"></svg>`);
+    attachZoom($('cmp_'+c.id), CZ, drawCompareCharts);
+  });
+  if(!PICK.length) box.innerHTML = '<div class="muted small" style="padding:10px 0">Tap a chip above to show a graph.</div>';
 }
 
 function drawCompareCharts(){
   if(!CMP) return;
-  const T = CMP.times;
-  cmpChart('cmpWind', CMP.wind, {times:T, zero:true, color:'#f59e0b'});
-  cmpChart('cmpRain', CMP.rain, {times:T, zero:true, bars:true, minTop:1, dp:1, color:'var(--rain)'});
-  cmpChart('cmpTemp', CMP.temp, {times:T, color:'#f97316'});
+  CHARTS.filter(c=>PICK.includes(c.id)).forEach(c => {
+    if(!$('cmp_'+c.id)) return;
+    $('lbl_'+c.id).textContent = c.label();
+    cmpChart('cmp_'+c.id, CMP.series[c.id], {times:CMP.times, ...c.opts});
+  });
 }
 
 function renderCompare(){
   if(!S.cmp || S.cmp.error || !S.cmp.hourly){
-    ['cmpWind','cmpRain','cmpTemp'].forEach(id=>$(id).innerHTML=`<text x="180" y="50" text-anchor="middle" fill="var(--muted)" font-size="11">Model comparison unavailable</text>`);
+    $('cmpCharts').innerHTML = '<div class="muted small" style="padding:10px 0">Model comparison unavailable right now.</div>';
     $('cmpTable').innerHTML=''; return;
   }
+  if(PICK.length && !$('cmpCharts').querySelector('svg')) buildChartSlots();
   prepCompare();
   const keep = CZ.n === CMP.times.length;
   if(!keep){ CZ.n = CMP.times.length; CZ.i0 = 0; CZ.i1 = Math.min(48, CZ.n); }
@@ -738,7 +770,6 @@ function renderCompare(){
   $('cmpLegend').innerHTML = S.cmpMode==='avg'
     ? `<span><i style="background:var(--ink)"></i>Average of ${models.length} models</span><span><i style="background:var(--muted);opacity:.6;height:8px;width:6px"></i>Bars = lowest to highest model</span>`
     : models.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
-  $('lblWind').textContent = `Wind (${S.unit})`;
   drawCompareCharts();
 
   // table: next 24 h, average (range) + each model
@@ -789,7 +820,7 @@ function attachZoom(svg, Z, redraw, L=28, R=6, minSpan=4){
   svg.addEventListener('wheel', e => { e.preventDefault(); const c = Z.i0 + (toX(e)-L)/pw()*(Z.i1-Z.i0), f = e.deltaY>0 ? 1.2 : 1/1.2;
     Z.i1 = c + (Z.i1-c)*f; Z.i0 = c - (c-Z.i0)*f; clamp(); redraw(); }, {passive:false});
 }
-['cmpWind','cmpRain','cmpTemp'].forEach(id => attachZoom($(id), CZ, drawCompareCharts));
+buildChartSlots();
 $('cmpReset').onclick = () => { CZ.i0 = 0; CZ.i1 = Math.min(48, CZ.n); drawCompareCharts(); };
 document.querySelectorAll('#cmpMode button').forEach(b => b.onclick = () => { S.cmpMode = b.dataset.m; store.set('cmpMode', S.cmpMode); renderCompare(); });
 
