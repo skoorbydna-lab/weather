@@ -92,6 +92,7 @@ button,select,input{font:inherit;color:inherit}
 .switch{display:flex;align-items:center;gap:8px;cursor:pointer}
 .switch input{width:18px;height:18px}
 .window{font-size:1.05rem;font-weight:700}
+.zoomable{touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .chartlbl{font-size:.75rem;font-weight:700;color:var(--muted);margin:10px 0 2px}
 footer{font-size:.75rem;color:var(--muted);text-align:center;margin-top:16px}
 footer a{color:inherit}
@@ -222,11 +223,14 @@ footer a{color:inherit}
   </section>
 
   <section class="card" id="tab-compare" hidden>
-    <h2><span>Models side by side · 48 h</span></h2>
+    <h2><span>Models side by side</span>
+      <span class="seg" id="cmpMode"><button data-m="avg">Average</button><button data-m="models">All models</button></span>
+    </h2>
     <div class="legend" id="cmpLegend"></div>
-    <div class="chartlbl" id="lblWind">Wind</div><svg id="cmpWind" viewBox="0 0 360 140" width="100%"></svg>
-    <div class="chartlbl">Rain (mm per hour)</div><svg id="cmpRain" viewBox="0 0 360 110" width="100%"></svg>
-    <div class="chartlbl">Temperature (°C)</div><svg id="cmpTemp" viewBox="0 0 360 120" width="100%"></svg>
+    <div class="chartlbl" id="lblWind">Wind</div><svg id="cmpWind" class="zoomable" viewBox="0 0 360 140" width="100%"></svg>
+    <div class="chartlbl">Rain (mm per hour)</div><svg id="cmpRain" class="zoomable" viewBox="0 0 360 110" width="100%"></svg>
+    <div class="chartlbl">Temperature (°C)</div><svg id="cmpTemp" class="zoomable" viewBox="0 0 360 120" width="100%"></svg>
+    <div class="row between small muted" style="margin-top:4px"><span id="cmpHint">pinch to zoom, drag to move · up to 14 days</span><button class="btn sm" id="cmpReset">Reset zoom</button></div>
     <div class="chartlbl" style="margin-top:14px">Next 24 hours – wind · rain · temp</div>
     <div class="scroll"><table class="hours cmp" id="cmpTable"></table></div>
   </section>
@@ -640,33 +644,80 @@ function renderWindow(){
 // ---------- model comparison ----------
 function cmpArr(modelId, key){ return (S.cmp.hourly[`${key}_${modelId}`] || []); }
 
-function lineChart(svgId, series, opts){
+// shared zoom window for the three compare charts
+const CZ = { i0:0, i1:48, n:0 };
+S.cmpMode = store.get('cmpMode', 'avg');
+
+function cmpChart(svgId, series, opts){
   const svg = $(svgId), vb = svg.viewBox.baseVal, W = vb.width, H = vb.height;
-  const N = opts.n, L=28, R=6, T=8, B=18;
-  const all = series.flatMap(s=>s.v).filter(x=>x!=null);
-  if(!all.length){ svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--muted)" font-size="11">No data</text>`; return; }
-  let lo = opts.zero ? 0 : Math.floor(Math.min(...all)), hi = Math.max(...all);
+  const L=28, R=6, T=10, B=18, pw = W-L-R, span = CZ.i1-CZ.i0, slot = pw/span;
+  const i0 = Math.max(0, Math.floor(CZ.i0)), i1 = Math.min(opts.times.length, Math.ceil(CZ.i1));
+  const x = i => L + (i - CZ.i0 + .5)*slot;
+  const vis = series.flatMap(s => s.v.slice(i0, i1)).filter(v => v!=null);
+  if(!vis.length){ svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--muted)" font-size="11">No data for this period</text>`; return; }
+  let lo = opts.zero ? 0 : Math.floor(Math.min(...vis)), hi = Math.max(...vis);
   if(opts.minTop) hi = Math.max(hi, opts.minTop);
-  hi = opts.zero ? hi : Math.ceil(hi);
+  hi = opts.zero && hi<=2 ? Math.ceil(hi*2)/2 : Math.ceil(hi);
   if(hi-lo<1) hi = lo+1;
-  const x = i => L + i*(W-L-R)/(N-1), y = v => H-B-(v-lo)/(hi-lo)*(H-B-T);
-  let g='';
-  for(let k=0;k<=3;k++){ const v=lo+(hi-lo)*k/3; g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-4}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${opts.dp?v.toFixed(opts.dp):Math.round(v)}</text>`; }
-  opts.times.forEach((t,i)=>{
-    if(t.endsWith('T00:00')) g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="3 3" opacity=".6"/><text x="${x(i)+3}" y="${T+8}" font-size="8" fill="var(--muted)">${dayLabel(t).slice(0,3)}</text>`;
-    if(i%6===0) g+=`<text x="${x(i)}" y="${H-5}" text-anchor="middle" font-size="9" fill="var(--muted)">${hhmm(t)}</text>`;
-  });
-  series.forEach(s=>{
-    if(opts.bars){
-      const bw = (W-L-R)/N/series.length;
-      s.v.forEach((v,i)=>{ if(!v) return; const h=(v-lo)/(hi-lo)*(H-B-T); g+=`<rect x="${x(i)-((W-L-R)/N)/2+s.k*bw}" y="${H-B-h}" width="${Math.max(bw,0.8)}" height="${h}" fill="${s.color}"/>`; });
-    }else{
-      let d='', pen=false;
-      s.v.forEach((v,i)=>{ if(v==null){pen=false;return;} d+=(pen?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; pen=true; });
-      g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.8" stroke-linejoin="round"/>`;
+  const y = v => H-B-(v-lo)/(hi-lo)*(H-B-T);
+  let g = `<defs><clipPath id="clip_${svgId}"><rect x="${L}" y="0" width="${pw}" height="${H}"/></clipPath></defs>`;
+  for(let k=0;k<=3;k++){ const v=lo+(hi-lo)*k/3; g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-4}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${opts.dp && hi<=3 ? v.toFixed(opts.dp) : Math.round(v)}</text>`; }
+  g += `<g clip-path="url(#clip_${svgId})">`;
+  const step = span<=8 ? 1 : span<=16 ? 2 : span<=30 ? 3 : span<=50 ? 6 : span<=100 ? 12 : 24;
+  let dayShown = false;
+  for(let i=i0;i<i1;i++){
+    const t = opts.times[i];
+    if(t.endsWith('T00:00')){ dayShown = true; g+=`<line x1="${x(i)-slot/2}" x2="${x(i)-slot/2}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="3 3" opacity=".6"/><text x="${x(i)-slot/2+3}" y="${T+7}" font-size="8" font-weight="700" fill="var(--ink)">${span>120 ? dayLabel(t).slice(0,2) : dayLabel(t).slice(0,3)}</text>`; }
+    if(step<24 && +t.slice(11,13) % step === 0) g+=`<text x="${x(i)}" y="${H-5}" text-anchor="middle" font-size="9" fill="var(--muted)">${hhmm(t)}</text>`;
+  }
+  if(!dayShown && opts.times[i0]) g += `<text x="${L+3}" y="${T+7}" font-size="8" font-weight="700" fill="var(--ink)">${dayLabel(opts.times[i0]).slice(0,3)}</text>`;
+
+  if(S.cmpMode==='avg'){
+    // spread bar (lowest–highest model) + mean line
+    const col = opts.color || 'var(--accent)';
+    let d='', pen=false;
+    for(let i=i0;i<i1;i++){
+      const vals = series.map(s=>s.v[i]).filter(v=>v!=null);
+      if(!vals.length){ pen=false; continue; }
+      const mn = Math.min(...vals), mx = Math.max(...vals), mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+      const bw = Math.max(1.5, slot*.62), op = vals.length>=4 ? .45 : vals.length>=2 ? .32 : .18;
+      g += `<rect x="${x(i)-bw/2}" y="${y(mx)}" width="${bw}" height="${Math.max(1.5, y(mn)-y(mx))}" rx="${Math.min(3,bw/2)}" fill="${col}" opacity="${op}"/>`;
+      d += (pen?'L':'M') + x(i).toFixed(1) + ' ' + y(mean).toFixed(1) + ' '; pen = true;
     }
-  });
+    g += `<path d="${d}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  } else if(opts.bars){
+    const nm = series.length, gap = Math.min(2, slot*.12), bw = Math.max(.6, (slot-2*gap)/nm);
+    for(let i=i0;i<i1;i++) series.forEach((s,k)=>{ const v=s.v[i]; if(!v) return; g+=`<rect x="${x(i)-slot/2+gap+k*bw}" y="${y(v)}" width="${bw}" height="${H-B-y(v)}" fill="${s.color}"/>`; });
+  } else {
+    series.forEach(s=>{
+      let d='', pen=false;
+      for(let i=i0;i<i1;i++){ const v=s.v[i]; if(v==null){pen=false;continue;} d+=(pen?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; pen=true; }
+      g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.8" stroke-linejoin="round"/>`;
+    });
+  }
+  // now marker
+  const nowOff = (Date.now() - toMs(opts.times[0]))/3600000 - .5;
+  if(nowOff>=CZ.i0-1 && nowOff<=CZ.i1) g += `<line x1="${x(nowOff)}" x2="${x(nowOff)}" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1" opacity=".7"/>`;
+  g += `</g>`;
   svg.innerHTML = g;
+}
+
+let CMP = null;   // prepared series for the visible charts
+function prepCompare(){
+  const h = S.cmp.hourly, now = Date.now();
+  let start = h.time.findIndex(t => toMs(t)+3600000 > now); if(start<0) start=0;
+  const times = h.time.slice(start);
+  const models = MODELS.filter(m => cmpArr(m.id,'temperature_2m').some(v=>v!=null));
+  const ser = key => models.map((m,k)=>({...m, k, v: cmpArr(m.id,key).slice(start).map(v=>v==null?null:(key.startsWith('wind_s')||key.startsWith('wind_g')?spd(v):v))}));
+  CMP = { start, times, models, wind:ser('wind_speed_10m'), rain:ser('precipitation'), temp:ser('temperature_2m') };
+}
+
+function drawCompareCharts(){
+  if(!CMP) return;
+  const T = CMP.times;
+  cmpChart('cmpWind', CMP.wind, {times:T, zero:true, color:'#f59e0b'});
+  cmpChart('cmpRain', CMP.rain, {times:T, zero:true, bars:true, minTop:1, dp:1, color:'var(--rain)'});
+  cmpChart('cmpTemp', CMP.temp, {times:T, color:'#f97316'});
 }
 
 function renderCompare(){
@@ -674,23 +725,28 @@ function renderCompare(){
     ['cmpWind','cmpRain','cmpTemp'].forEach(id=>$(id).innerHTML=`<text x="180" y="50" text-anchor="middle" fill="var(--muted)" font-size="11">Model comparison unavailable</text>`);
     $('cmpTable').innerHTML=''; return;
   }
-  const h = S.cmp.hourly, now = Date.now();
-  let start = h.time.findIndex(t => toMs(t)+3600000 > now); if(start<0) start=0;
-  const N = Math.min(48, h.time.length-start), times = h.time.slice(start, start+N);
-  const models = MODELS.filter(m => cmpArr(m.id,'temperature_2m').some(v=>v!=null));
-  const ser = key => models.map((m,k)=>({...m, k, v: cmpArr(m.id,key).slice(start,start+N).map(v=>v==null?null:(key.startsWith('wind_s')||key.startsWith('wind_g')?spd(v):v))}));
-  $('cmpLegend').innerHTML = models.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
+  prepCompare();
+  const keep = CZ.n === CMP.times.length;
+  if(!keep){ CZ.n = CMP.times.length; CZ.i0 = 0; CZ.i1 = Math.min(48, CZ.n); }
+  CZ.n = CMP.times.length;
+  const models = CMP.models;
+  document.querySelectorAll('#cmpMode button').forEach(b=>b.classList.toggle('on', b.dataset.m===S.cmpMode));
+  $('cmpLegend').innerHTML = S.cmpMode==='avg'
+    ? `<span><i style="background:var(--ink)"></i>Average of ${models.length} models</span><span><i style="background:var(--muted);opacity:.6;height:8px;width:6px"></i>Bars = lowest to highest model</span>`
+    : models.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
   $('lblWind').textContent = `Wind (${S.unit})`;
-  lineChart('cmpWind', ser('wind_speed_10m'), {n:N, times, zero:true});
-  lineChart('cmpRain', ser('precipitation'), {n:N, times, zero:true, bars:true, minTop:1, dp:1});
-  lineChart('cmpTemp', ser('temperature_2m'), {n:N, times});
+  drawCompareCharts();
 
-  let html = `<tr><th>Time</th>${models.map(s=>`<th style="color:${s.color}">${s.name.replace(' ','<br>')}</th>`).join('')}</tr>`;
+  // table: next 24 h, average (range) + each model
+  const h = S.cmp.hourly, start = CMP.start;
+  const avgCell = (vals, fmt) => { vals = vals.filter(v=>v!=null); if(!vals.length) return '–'; const m = vals.reduce((a,b)=>a+b,0)/vals.length; return `<b>${fmt(m)}</b><span class="gust"> ${fmt(Math.min(...vals))}–${fmt(Math.max(...vals))}</span>`; };
+  let html = `<tr><th>Time</th><th>Average<br><span class="gust">(range)</span></th>${models.map(s=>`<th style="color:${s.color}">${s.name.replace(' ','<br>')}</th>`).join('')}</tr>`;
   let lastDay='';
-  for(let i=0;i<Math.min(24,N);i++){
+  for(let i=0;i<Math.min(24,CMP.times.length);i++){
     const k = start+i, t=h.time[k], d=t.slice(0,10);
-    if(d!==lastDay){ html+=`<tr class="day"><td colspan="${models.length+1}">${dayLabel(t)}</td></tr>`; lastDay=d; }
-    html+=`<tr><td><b>${hhmm(t)}</b></td>`;
+    if(d!==lastDay){ html+=`<tr class="day"><td colspan="${models.length+2}">${dayLabel(t)}</td></tr>`; lastDay=d; }
+    const W = models.map(m=>cmpArr(m.id,'wind_speed_10m')[k]), P = models.map(m=>cmpArr(m.id,'precipitation')[k]), Te = models.map(m=>cmpArr(m.id,'temperature_2m')[k]);
+    html+=`<tr><td><b>${hhmm(t)}</b></td><td style="white-space:nowrap">${avgCell(W, v=>fmtSpd(v))}<br>${avgCell(P, v=>v.toFixed(1))}<br>${avgCell(Te, v=>Math.round(v)+'°')}</td>`;
     models.forEach(m=>{
       const w=cmpArr(m.id,'wind_speed_10m')[k], dir=cmpArr(m.id,'wind_direction_10m')[k], p=cmpArr(m.id,'precipitation')[k], te=cmpArr(m.id,'temperature_2m')[k];
       html+=`<td>${w==null?'–':arrowSvg(dir, windColour(w), 16)+`<b style="color:${windColour(w)}">${fmtSpd(w)}</b>`}<br>`
@@ -701,6 +757,37 @@ function renderCompare(){
   }
   $('cmpTable').innerHTML = html;
 }
+
+// pinch / drag / wheel zoom shared by the compare charts
+function attachZoom(svg, Z, redraw, L=28, R=6, minSpan=4){
+  const pts = new Map(); let st = null;
+  const toX = e => { const r = svg.getBoundingClientRect(); return (e.clientX - r.left) / r.width * svg.viewBox.baseVal.width; };
+  const pw = () => svg.viewBox.baseVal.width - L - R;
+  const clamp = () => { const span = Math.max(minSpan, Math.min(Z.n, Z.i1-Z.i0)); let a = Math.max(0, Z.i0); if(a+span>Z.n) a = Z.n-span; Z.i0=a; Z.i1=a+span; };
+  const snap = () => { st = {i0:Z.i0, i1:Z.i1, pts:new Map(pts)}; };
+  svg.addEventListener('pointerdown', e => { try{ svg.setPointerCapture(e.pointerId); }catch(_){} pts.set(e.pointerId, toX(e)); snap(); });
+  svg.addEventListener('pointermove', e => {
+    if(!pts.has(e.pointerId) || !st) return;
+    pts.set(e.pointerId, toX(e));
+    const ids = [...pts.keys()], span0 = st.i1-st.i0, w = pw();
+    if(ids.length>=2 && st.pts.size>=2){
+      const [a,b] = ids, a0=st.pts.get(a), b0=st.pts.get(b), a1=pts.get(a), b1=pts.get(b); if(a0==null||b0==null) return;
+      const span = Math.max(minSpan, Math.min(Z.n, span0 * Math.max(10,Math.abs(b0-a0)) / Math.max(10,Math.abs(b1-a1))));
+      const anchor = st.i0 + ((a0+b0)/2 - L)/w*span0;
+      Z.i0 = anchor - ((a1+b1)/2 - L)/w*span; Z.i1 = Z.i0 + span;
+    } else if(ids.length===1){
+      const id = ids[0]; Z.i0 = st.i0 - (pts.get(id) - (st.pts.get(id) ?? pts.get(id)))/w*span0; Z.i1 = Z.i0 + span0;
+    }
+    clamp(); redraw();
+  });
+  const end = e => { pts.delete(e.pointerId); snap(); };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  svg.addEventListener('wheel', e => { e.preventDefault(); const c = Z.i0 + (toX(e)-L)/pw()*(Z.i1-Z.i0), f = e.deltaY>0 ? 1.2 : 1/1.2;
+    Z.i1 = c + (Z.i1-c)*f; Z.i0 = c - (c-Z.i0)*f; clamp(); redraw(); }, {passive:false});
+}
+['cmpWind','cmpRain','cmpTemp'].forEach(id => attachZoom($(id), CZ, drawCompareCharts));
+$('cmpReset').onclick = () => { CZ.i0 = 0; CZ.i1 = Math.min(48, CZ.n); drawCompareCharts(); };
+document.querySelectorAll('#cmpMode button').forEach(b => b.onclick = () => { S.cmpMode = b.dataset.m; store.set('cmpMode', S.cmpMode); renderCompare(); });
 
 // ---------- alert server (ntfy) ----------
 const srvOK = () => S.srv.url && S.srv.key;
