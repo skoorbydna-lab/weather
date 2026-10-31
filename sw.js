@@ -1,6 +1,6 @@
 // Minimal service worker: lets Android install Ride Weather as an app and
 // shows the last loaded page if you're offline. Weather data is always fetched live.
-const CACHE = 'ride-weather-v2';
+const CACHE = 'ride-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => {

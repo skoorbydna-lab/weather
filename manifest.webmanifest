@@ -1,9 +1,9 @@
 {
-  "id": "/ride-weather/?app=rw2",
+  "id": "/ride/",
   "name": "Ride Weather",
   "short_name": "Ride Weather",
   "description": "Cycling weather: wind, rain, model comparison and rain alerts",
-  "start_url": "./?app=rw2",
+  "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
   "display_override": [

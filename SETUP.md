@@ -25,7 +25,7 @@ shared addresses use them up, so it doesn't work reliably from a Worker.)
 5. **Settings → Variables and Secrets**, add:
    - `KEY` (type Secret): your secret key
    - `NTFY_TOPIC`: your topic name
-   - `APP_URL`: `https://skoorbydna-lab.github.io/ride-weather/`
+   - `APP_URL`: `https://skoorbydna-lab.github.io/ride/`
    - optional `HOME_LAT` and `HOME_LON`: used until a location has been sent
 6. **Settings → Trigger events → Cron triggers → Add**: `*/10 * * * *`
 7. Copy the worker's address, e.g. `https://ride-rain.<your-subdomain>.workers.dev`
