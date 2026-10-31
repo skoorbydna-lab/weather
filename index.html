@@ -39,9 +39,19 @@ button,select,input{font:inherit;color:inherit}
 .card h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
 .muted{color:var(--muted)}
 .small{font-size:.82rem}
-.now{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+.now{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+.nowWind{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:7.5rem}
+.nowWind .compass{width:4.6rem;height:4.6rem}
+.nowWind .windline{font-size:1rem;margin-top:4px}
+.bigicon{font-size:3.4rem;line-height:1}
+.days{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+.days::-webkit-scrollbar{height:4px}.days::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
+.day{flex:0 0 5.4rem;scroll-snap-align:start;border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center;background:var(--bg);cursor:pointer;font-size:.85rem;line-height:1.35}
+.day.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.day .dn{font-weight:700}.day .ic{font-size:1.6rem;line-height:1.3}
+.day .hi{font-weight:700;font-size:1rem}
 .compass{width:7rem;height:7rem}
-.bigtemp{font-size:2.4rem;font-weight:700;line-height:1}
+.bigtemp{font-size:3.4rem;font-weight:700;line-height:1}
 .windline{font-size:1.25rem;font-weight:600;margin-top:6px}
 .banner{border-radius:12px;padding:10px 12px;margin-bottom:12px;font-weight:600;display:none}
 .banner.wet{display:block;background:#1d4ed8;color:#eff6ff}
@@ -145,39 +155,32 @@ footer a{color:inherit}
     </div>
   </section>
 
-  <div class="banner" id="rainBanner"></div>
-
   <section class="card">
     <h2><span>Now</span><span class="small" id="updated"></span></h2>
     <div class="now">
-      <svg class="compass" id="compass" viewBox="0 0 120 120"></svg>
-      <div>
-        <div class="bigtemp" id="nowTemp">–</div>
+      <div class="nowMain">
+        <div class="row" style="gap:.4rem;flex-wrap:nowrap"><span class="bigicon" id="nowIcon"></span><span class="bigtemp" id="nowTemp">–</span></div>
         <div class="muted" id="nowDesc"></div>
+      </div>
+      <div class="nowWind">
+        <svg class="compass" id="compass" viewBox="0 0 120 120"></svg>
         <div class="windline" id="nowWind"></div>
         <div class="muted small" id="nowGust"></div>
       </div>
     </div>
   </section>
 
-  <section class="card">
-    <h2><span>Rain – next 2 hours</span><span class="small" id="rainSummary"></span></h2>
-    <svg id="rainChart" viewBox="0 0 360 96" width="100%"></svg>
-    <div class="muted small" id="alertLine" style="margin-top:6px"></div>
+  <section class="card" style="padding-bottom:10px">
+    <h2><span>14-day outlook</span><span class="small">swipe · tap a day</span></h2>
+    <div class="days" id="days"></div>
   </section>
 
   <section class="card">
-    <h2><span>Best ride window today</span></h2>
-    <div class="row between">
-      <div class="window" id="rideWindow">–</div>
-      <label class="row small">Ride length
-        <select id="rideLen" class="btn sm">
-          <option value="1">1 h</option><option value="2" selected>2 h</option>
-          <option value="3">3 h</option><option value="4">4 h</option>
-        </select>
-      </label>
-    </div>
-    <div class="muted small" id="rideWhy"></div>
+    <h2><span>Rain</span><span class="small" id="rainSummary" style="text-transform:none;letter-spacing:0;font-weight:700"></span></h2>
+    <div class="legend" id="rainLegend"></div>
+    <svg id="rainChart" viewBox="0 0 360 150" width="100%" style="touch-action:pan-y;user-select:none;-webkit-user-select:none"></svg>
+    <div class="row between small muted" style="margin-top:2px"><span>mm per hour · pinch to zoom, drag to move</span><button class="btn sm" id="rainReset">Reset zoom</button></div>
+    <div class="muted small" id="alertLine" style="margin-top:6px"></div>
   </section>
 
   <div class="tabs">
@@ -187,7 +190,7 @@ footer a{color:inherit}
   </div>
 
   <section class="card" id="tab-hourly">
-    <h2><span>Hourly forecast</span>
+    <h2><span id="hourTitle">Hourly forecast</span>
       <select id="modelSel" class="btn sm" style="text-transform:none;letter-spacing:0"></select>
     </h2>
     <div class="scroll"><table class="hours" id="hourTable"></table></div>
@@ -228,6 +231,20 @@ footer a{color:inherit}
     <div class="muted small" style="margin-top:8px">Radar shows rain that has actually fallen in the last 2 hours. The forecast layers come from Open-Meteo for the time on the forecast slider. Arrows point the way the wind blows; the number is the speed in your units. Moving the map loads a new grid.</div>
   </section>
 
+  <section class="card" id="rideCard">
+    <h2><span>Best ride window today</span></h2>
+    <div class="row between">
+      <div class="window" id="rideWindow">–</div>
+      <label class="row small">Ride length
+        <select id="rideLen" class="btn sm">
+          <option value="1">1 h</option><option value="2" selected>2 h</option>
+          <option value="3">3 h</option><option value="4">4 h</option>
+        </select>
+      </label>
+    </div>
+    <div class="muted small" id="rideWhy"></div>
+  </section>
+
   <footer>
     <a href="https://open-meteo.com/">Weather data by Open-Meteo.com</a> (CC BY 4.0) · models: UK Met Office, ECMWF, DWD, NOAA, Météo-France · radar: <a href="https://www.rainviewer.com/">Rain Viewer</a> · map © OpenStreetMap
   </footer>
@@ -257,7 +274,7 @@ const S = {
   fs: store.get('fs', 'm'),
   srv: store.get('srv', {url:'', key:''}),
   share: store.get('share', true),
-  srvState: null, main: null, cmp: null, timer: null, loadedAt: 0
+  srvState: null, hourDay: null, main: null, cmp: null, timer: null, loadedAt: 0
 };
 
 const $ = id => document.getElementById(id);
@@ -303,7 +320,8 @@ async function load(){
   const hourlyVars = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day';
   const modelParam = S.model==='best_match' ? '' : `&models=${S.model}`;
   const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
-    + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&forecast_days=3`;
+    + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&forecast_days=14`
+    + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant`;
   const cmpUrl = `${API}?${common}&models=${MODELS.map(m=>m.id).join(',')}&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=3`;
   try{
     const [main, cmp] = await Promise.all([getJSON(mainUrl), getJSON(cmpUrl).catch(e=>({error:e.message}))]);
@@ -318,15 +336,16 @@ async function load(){
   sendLocation();
 }
 
-function renderAll(){ renderNow(); renderRain(); renderHourly(); renderWindow(); renderCompare(); }
+function renderAll(){ renderNow(); renderDays(); renderRain(); renderHourly(); renderWindow(); renderCompare(); }
 
 function renderNow(){
   const c = S.main.current;
   const [icon, desc] = wx(c.weather_code);
-  $('nowTemp').textContent = `${icon} ${Math.round(c.temperature_2m)}°`;
+  $('nowIcon').textContent = icon;
+  $('nowTemp').textContent = `${Math.round(c.temperature_2m)}°`;
   $('nowDesc').textContent = `${desc} · feels ${Math.round(c.apparent_temperature)}°`;
-  $('nowWind').innerHTML = `<span style="color:${windColour(c.wind_speed_10m)}">${fmtSpd(c.wind_speed_10m)} ${S.unit}</span> from ${dirName(c.wind_direction_10m)}`;
-  $('nowGust').textContent = `Gusts ${fmtSpd(c.wind_gusts_10m)} ${S.unit} · ${Math.round(c.wind_direction_10m)}°`;
+  $('nowWind').innerHTML = `<span style="color:${windColour(c.wind_speed_10m)}">${fmtSpd(c.wind_speed_10m)} ${S.unit}</span> ${dirName(c.wind_direction_10m)}`;
+  $('nowGust').textContent = `gusts ${fmtSpd(c.wind_gusts_10m)}`;
   drawCompass(c.wind_direction_10m, c.wind_speed_10m);
 }
 
@@ -351,35 +370,139 @@ function nextSlots(){
   return out.slice(0,8);
 }
 
-function renderRain(){
-  const slots = nextSlots(), svg = $('rainChart');
-  if(!slots.length){ svg.innerHTML = `<text x="180" y="50" text-anchor="middle" fill="var(--muted)">No 15-minute data</text>`; return; }
-  const max = Math.max(1, ...slots.map(s=>s.p||0));
-  const W=360, H=96, L=26, B=16, T=14, bw=(W-L-4)/slots.length, ph=H-B-T;
-  let g = `<line x1="${L}" x2="${W}" y1="${H-B}" y2="${H-B}" stroke="var(--line)"/><line x1="${L}" x2="${W}" y1="${T}" y2="${T}" stroke="var(--line)" stroke-dasharray="2 3"/>`
-        + `<text x="${L-4}" y="${T+3}" text-anchor="end" font-size="9" fill="var(--muted)">${max.toFixed(1)}</text><text x="${L-4}" y="${H-B+3}" text-anchor="end" font-size="9" fill="var(--muted)">0</text>`;
-  g += `<rect x="${L}" y="${T}" width="${bw*Math.min(4,slots.length)}" height="${ph}" fill="var(--rain)" opacity=".07"/>`;
-  slots.forEach((s,i)=>{
-    const v = s.p||0, h = (v/max)*ph, x = L+i*bw+5, w = bw-10;
-    g += `<rect x="${x}" y="${H-B-h}" width="${w}" height="${Math.max(h, v>0?2:0)}" rx="2" fill="var(--rain)" opacity="${i<4?1:.45}"/>`;
-    if(v>0) g += `<text x="${x+w/2}" y="${H-B-h-3}" text-anchor="middle" font-size="9" fill="var(--ink)">${v.toFixed(1)}</text>`;
-    g += `<text x="${x+w/2}" y="${H-4}" text-anchor="middle" font-size="9" fill="var(--muted)">${hhmm(s.t)}</text>`;
-  });
-  g += `<text x="${W-2}" y="9" text-anchor="end" font-size="8" fill="var(--muted)">mm per 15 min · next hour shaded</text>`;
-  svg.innerHTML = g;
+const RZ = { i0:0, i1:0, n:0, pts:new Map(), start:null };
 
-  const hour = slots.slice(0,4);
+function renderRain(){
+  // next-hour summary from the 15-minute forecast
+  const hour = nextSlots().slice(0,4);
   const wet = hour.find(s=>(s.p||0)>=0.1);
   const total = hour.reduce((a,s)=>a+(s.p||0),0);
-  const b = $('rainBanner');
+  const sum = $('rainSummary');
   if(wet){
-    const when = wet.ms <= Date.now() ? 'now' : 'from about ' + hhmm(wet.t);
-    $('rainSummary').textContent = `${total.toFixed(1)} mm next hour`;
-    b.className = 'banner wet'; b.textContent = `🌧️ Rain ${when} – ${total.toFixed(1)} mm expected in the next hour`;
-  }else{
-    $('rainSummary').textContent = 'dry next hour';
-    b.className = 'banner dry'; b.textContent = '✅ Dry for the next hour';
+    const when = wet.ms <= Date.now() ? 'now' : 'from ' + hhmm(wet.t);
+    sum.innerHTML = `<span style="color:var(--rain)">🌧️ Rain ${when} · ${total.toFixed(1)} mm next hour</span>`;
+  }else sum.innerHTML = `<span style="color:var(--good)">✅ Dry next hour</span>`;
+  drawRainModels(true);
+}
+
+function rainData(){
+  if(!S.cmp || S.cmp.error || !S.cmp.hourly) return null;
+  const h = S.cmp.hourly, now = Date.now();
+  let start = h.time.findIndex(t => toMs(t)+3600000 > now); if(start<0) start=0;
+  const times = h.time.slice(start);
+  const models = MODELS.filter(m => (h[`precipitation_${m.id}`]||[]).some(v=>v!=null))
+    .map(m => ({...m, v:h[`precipitation_${m.id}`].slice(start)}));
+  return {times, models};
+}
+
+function drawRainModels(reset){
+  const svg = $('rainChart'), d = rainData();
+  if(!d){ svg.innerHTML = `<text x="180" y="75" text-anchor="middle" fill="var(--muted)" font-size="11">Model rain forecast unavailable</text>`; return; }
+  const N = d.times.length;
+  if(reset || RZ.n!==N){ RZ.n = N; RZ.i0 = 0; RZ.i1 = Math.min(N, 24); }
+  const i0 = Math.max(0, Math.floor(RZ.i0)), i1 = Math.min(N, Math.ceil(RZ.i1)), span = RZ.i1 - RZ.i0;
+  const W=360,H=150,L=28,R=6,T=8,B=20, pw=W-L-R, slot = pw/span;
+  const x = i => L + (i - RZ.i0)*slot;
+  let max = 0.5;
+  d.models.forEach(m => { for(let i=i0;i<i1;i++) if(m.v[i]!=null) max = Math.max(max, m.v[i]); });
+  max = max<=1 ? 1 : Math.ceil(max);
+  const y = v => H-B-(v/max)*(H-B-T);
+  let g = `<defs><clipPath id="rclip"><rect x="${L}" y="0" width="${pw}" height="${H}"/></clipPath></defs>`;
+  for(let k=0;k<=2;k++){ const v=max*k/2; g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-4}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${max<=1?v.toFixed(1):Math.round(v)}</text>`; }
+  g += `<g clip-path="url(#rclip)">`;
+  const firstDay = d.times[Math.min(N-1, Math.max(0, Math.round(RZ.i0)))];
+  if(firstDay && !d.times.slice(i0, Math.min(i1, i0+Math.ceil(50/slot))).some(t=>t.endsWith('T00:00')))
+    g += `<text x="${L+3}" y="${T+9}" font-size="9" fill="var(--ink)" font-weight="700">${dayLabel(firstDay).split(' ')[0]}</text>`;
+  const step = span<=8 ? 1 : span<=16 ? 2 : span<=30 ? 3 : span<=50 ? 6 : 12;
+  for(let i=i0;i<i1;i++){
+    const t = d.times[i], cx = x(i)+slot/2;
+    if(t.endsWith('T00:00')) g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="3 3" opacity=".7"/><text x="${x(i)+3}" y="${T+9}" font-size="9" fill="var(--ink)" font-weight="700">${dayLabel(t).split(' ')[0]}</text>`;
+    if(+t.slice(11,13) % step === 0) g+=`<text x="${cx}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--muted)">${hhmm(t)}</text>`;
+    const nm = d.models.length, gap = Math.min(3, slot*.15), bw = Math.max(.6, (slot-2*gap)/nm);
+    d.models.forEach((m,k) => {
+      const v = m.v[i]; if(!v) return;
+      g += `<rect x="${x(i)+gap+k*bw}" y="${y(v)}" width="${bw}" height="${H-B-y(v)}" fill="${m.color}" opacity=".9"/>`;
+      if(slot>=34 && v>=0.1) g += `<text x="${x(i)+gap+k*bw+bw/2}" y="${y(v)-2}" text-anchor="middle" font-size="7" fill="${m.color}">${v.toFixed(1)}</text>`;
+    });
   }
+  // "now" marker
+  const nowOff = (Date.now() - toMs(d.times[0]))/3600000;
+  if(nowOff>=RZ.i0 && nowOff<=RZ.i1) g += `<line x1="${x(nowOff)}" x2="${x(nowOff)}" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1.2"/><text x="${x(nowOff)+3}" y="${H-B-4}" font-size="8" fill="var(--ink)">now</text>`;
+  g += `</g>`;
+  svg.innerHTML = g;
+  $('rainLegend').innerHTML = d.models.map(m=>`<span><i style="background:${m.color}"></i>${m.name}</span>`).join('');
+}
+
+// pinch-to-zoom / drag-to-pan on the rain chart
+(function(){
+  const svg = $('rainChart');
+  const toX = e => { const r = svg.getBoundingClientRect(); return (e.clientX - r.left) / r.width * 360; };
+  const idxAt = px => RZ.i0 + (px-28)/(360-34)*(RZ.i1-RZ.i0);
+  const clamp = () => {
+    const span = Math.max(4, Math.min(RZ.n, RZ.i1-RZ.i0));
+    let a = RZ.i0; if(a<0) a=0; if(a+span>RZ.n) a=RZ.n-span;
+    RZ.i0 = a; RZ.i1 = a+span;
+  };
+  svg.addEventListener('pointerdown', e => {
+    svg.setPointerCapture(e.pointerId); RZ.pts.set(e.pointerId, toX(e));
+    RZ.start = {i0:RZ.i0, i1:RZ.i1, pts:new Map(RZ.pts)};
+  });
+  svg.addEventListener('pointermove', e => {
+    if(!RZ.pts.has(e.pointerId) || !RZ.start) return;
+    RZ.pts.set(e.pointerId, toX(e));
+    const ids = [...RZ.pts.keys()], st = RZ.start, span0 = st.i1-st.i0, pw = 360-34;
+    if(ids.length>=2 && st.pts.size>=2){
+      const [a,b] = ids, a0 = st.pts.get(a), b0 = st.pts.get(b), a1 = RZ.pts.get(a), b1 = RZ.pts.get(b);
+      if(a0==null || b0==null) return;
+      const d0 = Math.max(10, Math.abs(b0-a0)), d1 = Math.max(10, Math.abs(b1-a1));
+      const span = Math.max(4, Math.min(RZ.n, span0 * d0/d1));
+      const mid0 = (a0+b0)/2, mid1 = (a1+b1)/2;
+      const anchor = st.i0 + (mid0-28)/pw*span0;
+      RZ.i0 = anchor - (mid1-28)/pw*span; RZ.i1 = RZ.i0 + span;
+    } else if(ids.length===1){
+      const id = ids[0], dx = RZ.pts.get(id) - (st.pts.get(id) ?? RZ.pts.get(id));
+      RZ.i0 = st.i0 - dx/pw*span0; RZ.i1 = RZ.i0 + span0;
+    }
+    clamp(); drawRainModels(false);
+  });
+  const end = e => { RZ.pts.delete(e.pointerId); RZ.start = {i0:RZ.i0, i1:RZ.i1, pts:new Map(RZ.pts)}; };
+  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+  svg.addEventListener('wheel', e => {   // mouse wheel zoom on a computer
+    e.preventDefault();
+    const c = idxAt(toX(e)), f = e.deltaY>0 ? 1.2 : 1/1.2, span = (RZ.i1-RZ.i0)*f;
+    RZ.i0 = c - (c-RZ.i0)*f; RZ.i1 = RZ.i0 + span; clamp(); drawRainModels(false);
+  }, {passive:false});
+  svg.addEventListener('dblclick', () => drawRainModels(true));
+  $('rainReset').onclick = () => drawRainModels(true);
+})();
+
+// ---------- 14-day outlook ----------
+function renderDays(){
+  const d = S.main.daily, box = $('days');
+  if(!d || !d.time){ box.innerHTML = ''; return; }
+  const today = (S.main.current.time || '').slice(0,10);
+  box.innerHTML = d.time.map((t,i) => {
+    if(d.temperature_2m_max[i]==null) return '';
+    const [icon] = wx(d.weather_code[i]);
+    const name = t===today ? 'Today' : new Date(t+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'short',timeZone:'UTC'});
+    const date = new Date(t+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+    const p = d.precipitation_sum[i], pp = d.precipitation_probability_max ? d.precipitation_probability_max[i] : null;
+    const w = d.wind_speed_10m_max[i], g = d.wind_gusts_10m_max[i], dir = d.wind_direction_10m_dominant[i];
+    return `<div class="day${S.hourDay===t?' on':''}" data-d="${t}">
+      <div class="dn">${name}</div><div class="muted small">${date}</div>
+      <div class="ic">${icon}</div>
+      <div><span class="hi">${Math.round(d.temperature_2m_max[i])}°</span> <span class="muted">${Math.round(d.temperature_2m_min[i])}°</span></div>
+      <div style="color:${p>=0.5?'var(--rain)':'var(--muted)'}">${p==null?'–':p.toFixed(1)+' mm'}${pp!=null?`<br><span class="gust">${pp}%</span>`:''}</div>
+      <div>${arrowSvg(dir, windColour(w), 16)}<b style="color:${windColour(w)}">${fmtSpd(w)}</b></div>
+      <div class="gust">gust ${fmtSpd(g)}</div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('.day').forEach(el => el.onclick = () => {
+    S.hourDay = (S.hourDay===el.dataset.d || el.dataset.d===today) ? null : el.dataset.d;
+    renderDays(); renderHourly();
+    document.querySelector('.tabs button[data-tab=hourly]').click();
+    $('tab-hourly').scrollIntoView({behavior:'smooth', block:'start'});
+  });
 }
 
 function hourStart(){
@@ -402,7 +525,10 @@ function rideScore(i){
 const scoreColour = s => s<1.5 ? 'var(--good)' : s<3.5 ? 'var(--ok)' : 'var(--bad)';
 
 function renderHourly(){
-  const h = S.main.hourly, start = hourStart(), end = Math.min(h.time.length, start+48);
+  const h = S.main.hourly;
+  let start = hourStart(), end = Math.min(h.time.length, start+48);
+  if(S.hourDay){ const a = h.time.findIndex(t=>t.startsWith(S.hourDay)); if(a>=0){ start = a; end = Math.min(h.time.length, a+24); } }
+  $('hourTitle').textContent = S.hourDay ? 'Hourly – ' + dayLabel(S.hourDay+'T12:00') : 'Hourly forecast – next 48 h';
   const hasProb = h.precipitation_probability && h.precipitation_probability.some(v=>v!=null);
   let html = `<tr><th></th><th>Time</th><th></th><th>Temp</th><th>Rain</th><th>Wind (${S.unit})</th></tr>`;
   let lastDay = '';
