@@ -3,13 +3,18 @@
 The web app (index.html) runs on GitHub Pages. Rain alerts come from a small
 Cloudflare Worker (worker.js). Every 10 minutes it checks Open-Meteo for your
 latest location. If rain is due within the hour, it sends a notification
-through ntfy.
+through Pushover.
 
-Keep your **topic name** and **secret key** private. Don't commit them to this repo.
+Keep your **secret key** and **Pushover keys** private. Don't commit them to this repo.
 
-## 1. ntfy (on your phone)
-1. Install **ntfy** from the Play Store / App Store.
-2. Tap **+** and subscribe to your private topic name (e.g. `ride-rain-xxxxxxxxxx`).
+## 1. Pushover (on your phone)
+1. Install **Pushover** from the Play Store and sign up (30-day free trial, then a one-off ~$5).
+2. On pushover.net (logged in), copy your **User Key**, shown top right.
+3. Scroll down to **Create an Application/API Token**. Name it `Ride Weather`, create it, and copy the **API Token**.
+4. Put both into the `CONFIG` block at the top of `worker.js` (PUSHOVER_USER, PUSHOVER_TOKEN).
+
+(ntfy is still supported, but ntfy.sh's free limits are counted per internet address, and Cloudflare's
+shared addresses use them up, so it doesn't work reliably from a Worker.)
 
 ## 2. Cloudflare Worker (free account at dash.cloudflare.com)
 1. **Workers & Pages → Create → Create Worker** (Hello World). Name it `ride-rain` and deploy.

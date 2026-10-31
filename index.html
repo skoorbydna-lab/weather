@@ -114,7 +114,7 @@ footer a{color:inherit}
       </span>
     </div>
 
-    <h3>Phone rain alerts (ntfy)</h3>
+    <h3>Phone rain alerts</h3>
     <div class="stack small">
       <input class="field" id="srvUrl" placeholder="Alert server URL, e.g. https://ride-rain.yourname.workers.dev" style="width:100%">
       <input class="field" id="srvKey" placeholder="Secret key" style="width:100%" type="password">
@@ -784,8 +784,8 @@ $('srvTest').onclick = async () => {
   showSrvState('Sending test…');
   try{
     const r = await srv('/test');
-    r.ok ? showSrvState(`Test sent to topic "${r.topic}" – check ntfy`, 'okc')
-         : showSrvState(`Server reached, but ntfy refused it (${r.status||''} ${r.error||''}) – topic "${r.topic||'?'}"`, 'err');
+    r.ok ? showSrvState(`Test sent via ${r.service||'alerts'} – check your phone`, 'okc')
+         : showSrvState(`Server reached, but ${r.service||'the alert service'} refused it: ${r.error||r.status||'unknown'}`, 'err');
   }catch(e){ showSrvState(`Couldn't reach your server: ${e.message}. Check the address (no /status on the end) and key.`, 'err'); }
 };
 $('srvCheck').onclick = async () => {

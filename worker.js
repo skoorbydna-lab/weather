@@ -1,21 +1,23 @@
 // Ride Weather – rain alert worker (Cloudflare Workers, free plan)
 //
 // Every 10 minutes (cron) it checks Open-Meteo's 15-minute rain forecast for
-// your latest location and sends a push via ntfy if rain is due in the next hour.
+// your latest location and sends a push via Pushover (or ntfy) if rain is due in the next hour.
 //
 // Bindings / variables to set in the Cloudflare dashboard:
 //   KV namespace binding:  STATE
 //   Variable  KEY          a secret password (the app and OwnTracks send it)
-//   Variable  NTFY_TOPIC   your private ntfy topic name
+//   Variable  PUSHOVER_USER / PUSHOVER_TOKEN  (or NTFY_TOPIC) – or fill in CONFIG below
 //   Variable  APP_URL      (optional) e.g. https://skoorbydna-lab.github.io/ride-weather/
 //   Variable  HOME_LAT / HOME_LON  (optional) used until a location has been sent
 // Cron trigger:  */10 * * * *
 
 // ---- EASY SETUP: fill these in here instead of using "Variables and Secrets" ----
 const CONFIG = {
-  KEY: '',          // your secret key
-  NTFY_TOPIC: '',   // your ntfy topic
-  NTFY_TOKEN: '',   // optional: ntfy access token (tk_...) from a free ntfy.sh account
+  KEY: '',             // your secret key (the app uses this)
+  PUSHOVER_USER: '',   // your Pushover User Key (pushover.net, top right after logging in)
+  PUSHOVER_TOKEN: '',  // your Pushover app's API Token (from "Create an Application")
+  NTFY_TOPIC: '',      // (alternative to Pushover) ntfy topic
+  NTFY_TOKEN: '',      // (optional) ntfy access token
   APP_URL: 'https://skoorbydna-lab.github.io/ride-weather/',
 };
 // ---------------------------------------------------------------------------------
@@ -55,16 +57,40 @@ function inQuiet(h, start, end) {
 }
 
 async function notify(env, title, body, tags = 'cloud_with_rain', priority = 'high') {
+  if (env.PUSHOVER_USER && env.PUSHOVER_TOKEN) return pushover(env, title, body, priority);
+  return ntfy(env, title, body, tags, priority);
+}
+
+async function pushover(env, title, message, priority) {
+  const form = new URLSearchParams({
+    token: env.PUSHOVER_TOKEN,
+    user: env.PUSHOVER_USER,
+    title,
+    message,
+    priority: priority === 'high' ? '1' : '0',
+  });
+  if (env.APP_URL) { form.set('url', env.APP_URL); form.set('url_title', 'Open Ride Weather'); }
+  try {
+    const r = await fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: form });
+    const j = await r.json().catch(() => ({}));
+    const ok = r.ok && j.status === 1;
+    return { ok, service: 'pushover', status: r.status, error: ok ? undefined : (j.errors || []).join('; ') || 'unknown error' };
+  } catch (e) {
+    return { ok: false, service: 'pushover', error: String(e) };
+  }
+}
+
+async function ntfy(env, title, body, tags, priority) {
+  if (!env.NTFY_TOPIC) return { ok: false, error: 'No alert service set: fill in PUSHOVER_USER and PUSHOVER_TOKEN' };
   const headers = { Title: title, Tags: tags, Priority: priority };
   if (env.APP_URL) headers.Click = env.APP_URL;
   if (env.NTFY_TOKEN) headers.Authorization = 'Bearer ' + env.NTFY_TOKEN;
-  if (!env.NTFY_TOPIC) return { ok: false, error: 'NTFY_TOPIC is not set' };
   try {
     const r = await fetch(`https://ntfy.sh/${encodeURIComponent(env.NTFY_TOPIC)}`, { method: 'POST', body, headers });
     const text = r.ok ? '' : (await r.text()).slice(0, 200);
-    return { ok: r.ok, status: r.status, topic: env.NTFY_TOPIC, error: text || undefined };
+    return { ok: r.ok, service: 'ntfy', status: r.status, topic: env.NTFY_TOPIC, error: text || undefined };
   } catch (e) {
-    return { ok: false, topic: env.NTFY_TOPIC, error: String(e) };
+    return { ok: false, service: 'ntfy', topic: env.NTFY_TOPIC, error: String(e) };
   }
 }
 
@@ -168,7 +194,7 @@ export default {
     }
 
     if (path === '/test') {
-      const r = await notify(env, 'Test alert', 'ntfy is working - rain alerts will arrive here.', 'bell', 'default');
+      const r = await notify(env, 'Test alert', 'Alerts are working - rain warnings will arrive here.', 'bell', 'default');
       return json(r);
     }
 
