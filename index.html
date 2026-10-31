@@ -22,7 +22,7 @@
 html{font-size:15px}
 html.fs-s{font-size:13px} html.fs-l{font-size:17.5px} html.fs-xl{font-size:20px}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:1rem}
+body{transition:background-color .8s;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:1rem}
 .wrap{max-width:760px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
 header{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .clock{text-align:right;flex:0 0 auto;line-height:1.2}
@@ -52,7 +52,7 @@ button,select,input{font:inherit;color:inherit}
 .search input,.field{flex:1;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:.5em .75em;min-width:0}
 .results{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:10px;margin-top:4px;z-index:20;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .results button{display:block;width:100%;text-align:left;border:0;background:none;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.card{transition:background-color .8s,border-color .8s;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
 .card h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
 .card h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
 .muted{color:var(--muted)}
@@ -176,6 +176,7 @@ footer a{color:inherit}
   <section class="card" id="settings" hidden>
     <h2><span>Settings</span><button class="btn sm" id="setClose">Done</button></h2>
     <label class="switch" style="margin-bottom:10px"><input type="checkbox" id="autoFs"> Go full screen automatically when I first tap the app</label>
+    <label class="switch" style="margin-bottom:10px"><input type="checkbox" id="tempTheme"> Background colour follows the current temperature</label>
     <div class="row between" style="margin-bottom:10px">
       <span>Wind speed units</span>
       <span class="seg" id="unitSeg"><button data-u="mph">mph</button><button data-u="km/h">km/h</button></span>
@@ -474,6 +475,7 @@ function renderNow(){
   $('nowWind').innerHTML = `<span style="color:${windColour(c.wind_speed_10m)}">${fmtSpd(c.wind_speed_10m)} ${S.unit}</span> ${dirName(c.wind_direction_10m)}`;
   $('nowGust').textContent = `gusts ${fmtSpd(c.wind_gusts_10m)}`;
   drawCompass(c.wind_direction_10m, c.wind_speed_10m);
+  applyTempTheme(c.temperature_2m);
 }
 
 function drawCompass(dir, mph){
@@ -507,6 +509,19 @@ function renderRain(){
     const when = wet.ms <= Date.now() ? 'now' : 'from ' + hhmm(wet.t);
     sum.innerHTML = `<span style="color:var(--rain)">🌧️ Rain ${when} · ${total.toFixed(1)} mm</span>`;
   }else sum.innerHTML = `<span style="color:var(--good)">✅ Dry next hour</span>`;
+}
+
+// ---------- background tinted by temperature (same scale as the map) ----------
+function applyTempTheme(t){
+  const root = document.documentElement.style;
+  if(!store.get('tempTheme', true) || t==null){
+    ['--bg','--card','--line'].forEach(v=>root.removeProperty(v));
+    document.querySelector('meta[name=theme-color]').content = '#0a1a3a'; return;
+  }
+  const c = ramp(TEMP_STOPS, t), mix = (base, k) => `rgb(${c.map((v,i)=>Math.round(v*k + base[i]*(1-k))).join(',')})`;
+  const bg = mix([6,12,28], .22), card = mix([12,24,52], .30), line = mix([30,50,95], .45);
+  root.setProperty('--bg', bg); root.setProperty('--card', card); root.setProperty('--line', line);
+  document.querySelector('meta[name=theme-color]').content = bg;
 }
 
 // ---------- clock + sunrise/sunset ----------
@@ -1171,6 +1186,8 @@ $('setClose').onclick = () => { $('settings').hidden = true; };
 function unitSeg(){ document.querySelectorAll('#unitSeg button').forEach(b=>b.classList.toggle('on', b.dataset.u===S.unit)); }
 document.querySelectorAll('#unitSeg button').forEach(b => b.onclick = () => { S.unit = b.dataset.u; store.set('unit', S.unit); unitSeg(); if(S.main) renderAll(); drawGrid(); });
 unitSeg();
+$('tempTheme').checked = store.get('tempTheme', true);
+$('tempTheme').onchange = e => { store.set('tempTheme', e.target.checked); applyTempTheme(S.main && S.main.current ? S.main.current.temperature_2m : null); };
 $('refreshBtn').onclick = () => { load(true); refreshSrv(); };
 
 $('modelSel').innerHTML = `<option value="best_match">Best match</option>` + MODELS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
