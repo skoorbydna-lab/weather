@@ -25,8 +25,11 @@ html.fs-s{font-size:13px} html.fs-l{font-size:17.5px} html.fs-xl{font-size:20px}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:1rem}
 .wrap{max-width:760px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
 header{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-.hbtns{display:flex;gap:5px;flex:0 0 auto}
-.hbtns .btn{padding:.4em .5em;min-width:2.2rem}
+.hbtns{display:flex;gap:4px;flex:0 0 auto}
+.hbtns .btn{padding:.35em .3em;min-width:2rem;font-size:.9rem;border-radius:9px}
+header{flex-wrap:wrap}
+.brand .logo{width:2.3rem;height:2.3rem}
+.appname{font-size:1.2rem}
 .brand{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0}
 .logo{width:2.6rem;height:2.6rem;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.35)}
 .appname{font-size:1.35rem;font-weight:800;letter-spacing:-.01em;line-height:1.1;white-space:nowrap}
@@ -65,9 +68,6 @@ button,select,input{font:inherit;color:inherit}
 .banner{border-radius:12px;padding:10px 12px;margin-bottom:12px;font-weight:600;display:none}
 .banner.wet{display:block;background:#1d4ed8;color:#eff6ff}
 .banner.dry{display:block;background:#14532d;color:#dcfce7}
-.tabs{display:flex;gap:6px;margin-bottom:12px}
-.tabs button{flex:1}
-.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
 .seg button{border:0;background:none;padding:.4em .8em;cursor:pointer}
 .seg button.on{background:var(--accent);color:#fff}
@@ -99,6 +99,17 @@ footer a{color:inherit}
 .err{color:var(--bad)} .okc{color:var(--good)}
 .scroll{overflow-x:auto}
 .stack>*+*{margin-top:8px}
+.foldhead{cursor:pointer;user-select:none;-webkit-user-select:none}
+.card.fold>h2.foldhead{margin-bottom:10px}
+.fold.closed>.foldbody{display:none}
+.card.fold.closed>h2.foldhead{margin-bottom:0}
+.chev{display:inline-block;transition:transform .2s;font-size:1rem;color:var(--muted);margin-left:6px}
+.fold.closed>.foldhead .chev{transform:rotate(-90deg)}
+.subhead{display:flex;align-items:center;gap:6px;width:100%;margin-top:12px;padding:8px 0 6px;border:0;border-top:1px solid var(--line);background:none;color:var(--muted);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:left}
+.subhead .chev{margin-left:0}
+#mapLegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:.75rem;color:var(--muted)}
+#mapLegend .lg{display:flex;align-items:center;gap:6px}
+#mapLegend .bar{width:110px;height:8px;border-radius:4px}
 #map{height:62vh;min-height:360px;border-radius:12px;overflow:hidden;background:#0a1a3a}
 .leaflet-container{font:inherit}
 .leaflet-control-attribution{font-size:9px;background:rgba(10,26,58,.75)!important;color:#9fb3dc}
@@ -202,69 +213,67 @@ footer a{color:inherit}
     <div class="days" id="days"></div>
   </section>
 
-  <section class="card">
-    <h2><span>Rain</span><span class="small" id="rainSummary" style="text-transform:none;letter-spacing:0;font-weight:700"></span></h2>
-    <div class="legend" id="rainLegend"></div>
-    <svg id="rainChart" viewBox="0 0 360 150" width="100%" style="touch-action:pan-y;user-select:none;-webkit-user-select:none"></svg>
-    <div class="row between small muted" style="margin-top:2px"><span>mm per hour · up to 14 days · pinch to zoom, drag to move</span><button class="btn sm" id="rainReset">Reset zoom</button></div>
-    <div class="muted small" id="alertLine" style="margin-top:6px"></div>
+  <section class="card fold" id="tab-compare" data-fold="models">
+    <h2 class="foldhead"><span>Forecast models</span><span class="small" id="rainSummary" style="text-transform:none;letter-spacing:0;font-weight:700;margin-left:auto"></span><span class="chev">▾</span></h2>
+    <div class="foldbody">
+      <div class="row between" style="margin-bottom:4px">
+        <span class="seg" id="cmpMode"><button data-m="avg">Average</button><button data-m="models">All models</button></span>
+        <button class="btn sm" id="cmpReset">Reset zoom</button>
+      </div>
+      <div class="legend" id="cmpLegend"></div>
+      <div class="chartlbl" id="lblWind">Wind</div><svg id="cmpWind" class="zoomable" viewBox="0 0 360 140" width="100%"></svg>
+      <div class="chartlbl">Rain (mm per hour)</div><svg id="cmpRain" class="zoomable" viewBox="0 0 360 110" width="100%"></svg>
+      <div class="chartlbl">Temperature (°C)</div><svg id="cmpTemp" class="zoomable" viewBox="0 0 360 120" width="100%"></svg>
+      <div class="small muted" style="margin-top:4px">Pinch to zoom, drag to move · up to 14 days</div>
+      <div class="muted small" id="alertLine" style="margin-top:6px"></div>
+      <div class="fold sub" data-fold="table">
+        <button class="foldhead subhead" type="button"><span class="chev">▾</span> Data table – next 24 hours</button>
+        <div class="foldbody"><div class="scroll"><table class="hours cmp" id="cmpTable"></table></div></div>
+      </div>
+    </div>
   </section>
 
-  <div class="tabs">
-    <button class="btn on" data-tab="hourly">Hourly</button>
-    <button class="btn" data-tab="compare">Compare</button>
-    <button class="btn" data-tab="map">Map</button>
-  </div>
-
-  <section class="card" id="tab-hourly">
-    <h2><span id="hourTitle">Hourly forecast</span>
-      <select id="modelSel" class="btn sm" style="text-transform:none;letter-spacing:0"></select>
+  <section class="card fold" id="tab-hourly" data-fold="hourly">
+    <h2 class="foldhead"><span id="hourTitle">Hourly forecast</span>
+      <span class="row" style="gap:6px;flex-wrap:nowrap"><select id="modelSel" class="btn sm" style="text-transform:none;letter-spacing:0"></select><span class="chev">▾</span></span>
     </h2>
+    <div class="foldbody">
     <div class="scroll"><table class="hours" id="hourTable"></table></div>
     <div class="muted small" style="margin-top:8px">Arrows point the way the wind is blowing <b>to</b>; letters show where it comes <b>from</b>. Dot = ride rating (rain, wind, gusts, cold, daylight).</div>
+    </div>
   </section>
 
-  <section class="card" id="tab-compare" hidden>
-    <h2><span>Models side by side</span>
-      <span class="seg" id="cmpMode"><button data-m="avg">Average</button><button data-m="models">All models</button></span>
-    </h2>
-    <div class="legend" id="cmpLegend"></div>
-    <div class="chartlbl" id="lblWind">Wind</div><svg id="cmpWind" class="zoomable" viewBox="0 0 360 140" width="100%"></svg>
-    <div class="chartlbl">Rain (mm per hour)</div><svg id="cmpRain" class="zoomable" viewBox="0 0 360 110" width="100%"></svg>
-    <div class="chartlbl">Temperature (°C)</div><svg id="cmpTemp" class="zoomable" viewBox="0 0 360 120" width="100%"></svg>
-    <div class="row between small muted" style="margin-top:4px"><span id="cmpHint">pinch to zoom, drag to move · up to 14 days</span><button class="btn sm" id="cmpReset">Reset zoom</button></div>
-    <div class="chartlbl" style="margin-top:14px">Next 24 hours – wind · rain · temp</div>
-    <div class="scroll"><table class="hours cmp" id="cmpTable"></table></div>
+  <section class="card fold" id="tab-map" data-fold="map">
+    <h2 class="foldhead"><span>Weather map</span><span class="small" id="mapStatus" style="margin-left:auto"></span><span class="chev">▾</span></h2>
+    <div class="foldbody">
+      <div class="layers" id="layerBox">
+        <label><input type="checkbox" data-l="radar"> 📡 Radar</label>
+        <label><input type="checkbox" data-l="rain"> 🌧️ Rain</label>
+        <label><input type="checkbox" data-l="cloud"> ☁️ Cloud</label>
+        <label><input type="checkbox" data-l="temp"> 🌡️ Temp</label>
+        <label><input type="checkbox" data-l="wind"> 🌬️ Wind</label>
+        <label><input type="checkbox" data-l="wx"> ⛅ Icons</label>
+        <button class="btn sm" id="mapStyleBtn" style="border-radius:999px"></button>
+      </div>
+      <div id="map"></div>
+      <div id="mapLegend"></div>
+      <div class="slider small" id="radarRow">
+        <button class="btn sm" id="radarPlay">▶</button>
+        <span style="min-width:7.5em">Radar <b id="radarTime">–</b></span>
+        <input type="range" id="radarSlider" min="0" max="0" value="0">
+      </div>
+      <div class="slider small">
+        <button class="btn sm" id="fcPlay">▶</button>
+        <span style="min-width:7.5em">Forecast <b id="fcTime">–</b></span>
+        <input type="range" id="fcSlider" min="0" max="23" value="0">
+      </div>
+      <div class="muted small" style="margin-top:8px">Radar shows rain that has actually fallen in the last 2 hours. Rain, cloud, temperature and wind are the forecast for the time on the forecast slider. Wind streaks flow the way the wind blows, coloured by strength.</div>
+    </div>
   </section>
 
-
-  <section class="card" id="tab-map" hidden>
-    <h2><span>Weather map</span><span class="small" id="mapStatus"></span></h2>
-    <div class="layers" id="layerBox">
-      <label><input type="checkbox" data-l="radar" checked> 📡 Radar</label>
-      <label><input type="checkbox" data-l="rain"> 🌧️ Rain forecast</label>
-      <label><input type="checkbox" data-l="cloud"> ☁️ Cloud</label>
-      <label><input type="checkbox" data-l="wx" checked> ⛅ Weather</label>
-      <label><input type="checkbox" data-l="temp" checked> 🌡️ Temp</label>
-      <label><input type="checkbox" data-l="wind" checked> 🌬️ Wind</label>
-      <button class="btn sm" id="mapStyleBtn" style="border-radius:999px"></button>
-    </div>
-    <div id="map"></div>
-    <div class="slider small" id="radarRow">
-      <button class="btn sm" id="radarPlay">▶</button>
-      <span style="min-width:7.5em">Radar <b id="radarTime">–</b></span>
-      <input type="range" id="radarSlider" min="0" max="0" value="0">
-    </div>
-    <div class="slider small">
-      <button class="btn sm" id="fcPlay">▶</button>
-      <span style="min-width:7.5em">Forecast <b id="fcTime">–</b></span>
-      <input type="range" id="fcSlider" min="0" max="23" value="0">
-    </div>
-    <div class="muted small" style="margin-top:8px">Radar shows rain that has actually fallen in the last 2 hours. The forecast layers come from Open-Meteo for the time on the forecast slider. Arrows point the way the wind blows; the number is the speed in your units. Moving the map loads a new grid.</div>
-  </section>
-
-  <section class="card" id="rideCard">
-    <h2><span>Best ride window today</span></h2>
+  <section class="card fold" id="rideCard" data-fold="ride">
+    <h2 class="foldhead"><span>Best ride window today</span><span class="chev">▾</span></h2>
+    <div class="foldbody">
     <div class="row between">
       <div class="window" id="rideWindow">–</div>
       <label class="row small">Ride length
@@ -275,6 +284,7 @@ footer a{color:inherit}
       </label>
     </div>
     <div class="muted small" id="rideWhy"></div>
+    </div>
   </section>
 
   <footer>
@@ -441,8 +451,6 @@ function nextSlots(){
   return out.slice(0,8);
 }
 
-const RZ = { i0:0, i1:0, n:0, pts:new Map(), start:null };
-
 function renderRain(){
   // next-hour summary from the 15-minute forecast
   const hour = nextSlots().slice(0,4);
@@ -451,101 +459,9 @@ function renderRain(){
   const sum = $('rainSummary');
   if(wet){
     const when = wet.ms <= Date.now() ? 'now' : 'from ' + hhmm(wet.t);
-    sum.innerHTML = `<span style="color:var(--rain)">🌧️ Rain ${when} · ${total.toFixed(1)} mm next hour</span>`;
+    sum.innerHTML = `<span style="color:var(--rain)">🌧️ Rain ${when} · ${total.toFixed(1)} mm</span>`;
   }else sum.innerHTML = `<span style="color:var(--good)">✅ Dry next hour</span>`;
-  drawRainModels(true);
 }
-
-function rainData(){
-  if(!S.cmp || S.cmp.error || !S.cmp.hourly) return null;
-  const h = S.cmp.hourly, now = Date.now();
-  let start = h.time.findIndex(t => toMs(t)+3600000 > now); if(start<0) start=0;
-  const times = h.time.slice(start);
-  const models = MODELS.filter(m => (h[`precipitation_${m.id}`]||[]).some(v=>v!=null))
-    .map(m => ({...m, v:h[`precipitation_${m.id}`].slice(start)}));
-  return {times, models};
-}
-
-function drawRainModels(reset){
-  const svg = $('rainChart'), d = rainData();
-  if(!d){ svg.innerHTML = `<text x="180" y="75" text-anchor="middle" fill="var(--muted)" font-size="11">Model rain forecast unavailable</text>`; return; }
-  const N = d.times.length;
-  if(reset || RZ.n!==N){ RZ.n = N; RZ.i0 = 0; RZ.i1 = Math.min(N, 24); }
-  const i0 = Math.max(0, Math.floor(RZ.i0)), i1 = Math.min(N, Math.ceil(RZ.i1)), span = RZ.i1 - RZ.i0;
-  const W=360,H=150,L=28,R=6,T=8,B=20, pw=W-L-R, slot = pw/span;
-  const x = i => L + (i - RZ.i0)*slot;
-  let max = 0.5;
-  d.models.forEach(m => { for(let i=i0;i<i1;i++) if(m.v[i]!=null) max = Math.max(max, m.v[i]); });
-  max = max<=1 ? 1 : Math.ceil(max);
-  const y = v => H-B-(v/max)*(H-B-T);
-  let g = `<defs><clipPath id="rclip"><rect x="${L}" y="0" width="${pw}" height="${H}"/></clipPath></defs>`;
-  for(let k=0;k<=2;k++){ const v=max*k/2; g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-4}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${max<=1?v.toFixed(1):Math.round(v)}</text>`; }
-  g += `<g clip-path="url(#rclip)">`;
-  const firstDay = d.times[Math.min(N-1, Math.max(0, Math.round(RZ.i0)))];
-  if(firstDay && !d.times.slice(i0, Math.min(i1, i0+Math.ceil(50/slot))).some(t=>t.endsWith('T00:00')))
-    g += `<text x="${L+3}" y="${T+9}" font-size="9" fill="var(--ink)" font-weight="700">${dayLabel(firstDay).split(' ')[0]}</text>`;
-  const step = span<=8 ? 1 : span<=16 ? 2 : span<=30 ? 3 : span<=50 ? 6 : span<=100 ? 12 : 24;
-  for(let i=i0;i<i1;i++){
-    const t = d.times[i], cx = x(i)+slot/2;
-    if(t.endsWith('T00:00')) g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="3 3" opacity=".7"/><text x="${x(i)+3}" y="${T+9}" font-size="9" fill="var(--ink)" font-weight="700">${span>120 ? dayLabel(t).slice(0,2) : dayLabel(t).split(' ')[0]}</text>`;
-    if(step<24 && +t.slice(11,13) % step === 0) g+=`<text x="${cx}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--muted)">${hhmm(t)}</text>`;
-    const nm = d.models.length, gap = Math.min(3, slot*.15), bw = Math.max(.6, (slot-2*gap)/nm);
-    d.models.forEach((m,k) => {
-      const v = m.v[i]; if(!v) return;
-      g += `<rect x="${x(i)+gap+k*bw}" y="${y(v)}" width="${bw}" height="${H-B-y(v)}" fill="${m.color}" opacity=".9"/>`;
-      if(slot>=34 && v>=0.1) g += `<text x="${x(i)+gap+k*bw+bw/2}" y="${y(v)-2}" text-anchor="middle" font-size="7" fill="${m.color}">${v.toFixed(1)}</text>`;
-    });
-  }
-  // "now" marker
-  const nowOff = (Date.now() - toMs(d.times[0]))/3600000;
-  if(nowOff>=RZ.i0 && nowOff<=RZ.i1) g += `<line x1="${x(nowOff)}" x2="${x(nowOff)}" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1.2"/><text x="${x(nowOff)+3}" y="${H-B-4}" font-size="8" fill="var(--ink)">now</text>`;
-  g += `</g>`;
-  svg.innerHTML = g;
-  $('rainLegend').innerHTML = d.models.map(m=>`<span><i style="background:${m.color}"></i>${m.name}</span>`).join('');
-}
-
-// pinch-to-zoom / drag-to-pan on the rain chart
-(function(){
-  const svg = $('rainChart');
-  const toX = e => { const r = svg.getBoundingClientRect(); return (e.clientX - r.left) / r.width * 360; };
-  const idxAt = px => RZ.i0 + (px-28)/(360-34)*(RZ.i1-RZ.i0);
-  const clamp = () => {
-    const span = Math.max(4, Math.min(RZ.n, RZ.i1-RZ.i0));
-    let a = RZ.i0; if(a<0) a=0; if(a+span>RZ.n) a=RZ.n-span;
-    RZ.i0 = a; RZ.i1 = a+span;
-  };
-  svg.addEventListener('pointerdown', e => {
-    svg.setPointerCapture(e.pointerId); RZ.pts.set(e.pointerId, toX(e));
-    RZ.start = {i0:RZ.i0, i1:RZ.i1, pts:new Map(RZ.pts)};
-  });
-  svg.addEventListener('pointermove', e => {
-    if(!RZ.pts.has(e.pointerId) || !RZ.start) return;
-    RZ.pts.set(e.pointerId, toX(e));
-    const ids = [...RZ.pts.keys()], st = RZ.start, span0 = st.i1-st.i0, pw = 360-34;
-    if(ids.length>=2 && st.pts.size>=2){
-      const [a,b] = ids, a0 = st.pts.get(a), b0 = st.pts.get(b), a1 = RZ.pts.get(a), b1 = RZ.pts.get(b);
-      if(a0==null || b0==null) return;
-      const d0 = Math.max(10, Math.abs(b0-a0)), d1 = Math.max(10, Math.abs(b1-a1));
-      const span = Math.max(4, Math.min(RZ.n, span0 * d0/d1));
-      const mid0 = (a0+b0)/2, mid1 = (a1+b1)/2;
-      const anchor = st.i0 + (mid0-28)/pw*span0;
-      RZ.i0 = anchor - (mid1-28)/pw*span; RZ.i1 = RZ.i0 + span;
-    } else if(ids.length===1){
-      const id = ids[0], dx = RZ.pts.get(id) - (st.pts.get(id) ?? RZ.pts.get(id));
-      RZ.i0 = st.i0 - dx/pw*span0; RZ.i1 = RZ.i0 + span0;
-    }
-    clamp(); drawRainModels(false);
-  });
-  const end = e => { RZ.pts.delete(e.pointerId); RZ.start = {i0:RZ.i0, i1:RZ.i1, pts:new Map(RZ.pts)}; };
-  svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
-  svg.addEventListener('wheel', e => {   // mouse wheel zoom on a computer
-    e.preventDefault();
-    const c = idxAt(toX(e)), f = e.deltaY>0 ? 1.2 : 1/1.2, span = (RZ.i1-RZ.i0)*f;
-    RZ.i0 = c - (c-RZ.i0)*f; RZ.i1 = RZ.i0 + span; clamp(); drawRainModels(false);
-  }, {passive:false});
-  svg.addEventListener('dblclick', () => drawRainModels(true));
-  $('rainReset').onclick = () => drawRainModels(true);
-})();
 
 // ---------- 14-day outlook ----------
 function renderDays(){
@@ -571,7 +487,7 @@ function renderDays(){
   box.querySelectorAll('.day').forEach(el => el.onclick = () => {
     S.hourDay = (S.hourDay===el.dataset.d || el.dataset.d===today) ? null : el.dataset.d;
     renderDays(); renderHourly();
-    document.querySelector('.tabs button[data-tab=hourly]').click();
+    setFold($('tab-hourly'), true);
     $('tab-hourly').scrollIntoView({behavior:'smooth', block:'start'});
   });
 }
@@ -848,36 +764,201 @@ async function pushSettings(){
 
 
 // ---------- map ----------
-const M = { map:null, groups:{}, grid:null, fcIdx:0, radarFrames:[], radarLayers:{}, radarIdx:0, radarHost:'', timers:{}, me:null, gridKey:'' };
-const LAYERS = Object.assign({radar:true, rain:false, cloud:false, wx:true, temp:true, wind:true}, store.get('layers', {}));
+const M = { map:null, base:null, radarFrames:[], radarLayers:{}, radarHost:'', radarGroup:null, iconGroup:null,
+            timers:{}, me:null, grid:null, fcIdx:0, fields:null, fieldLayer:null, windLayer:null, visible:false };
+const LAYERS = Object.assign({radar:true, rain:true, cloud:false, temp:true, wind:true, wx:false}, store.get('layers2', {}));
 
-function tempColour(t){
-  const stops = [[-5,'#7c3aed'],[0,'#3b82f6'],[5,'#06b6d4'],[10,'#22c55e'],[15,'#eab308'],[20,'#f97316'],[25,'#ef4444'],[30,'#be123c']];
-  for(let i=stops.length-1;i>=0;i--) if(t>=stops[i][0]) return stops[i][1];
-  return stops[0][1];
+const TEMP_STOPS = [[-10,[124,58,237]],[-5,[99,102,241]],[0,[59,130,246]],[5,[6,182,212]],[10,[34,197,94]],[15,[234,179,8]],[20,[249,115,22]],[25,[239,68,68]],[32,[190,18,60]]];
+const WIND_STOPS = [[0,[167,243,208]],[6,[52,211,153]],[12,[250,204,21]],[18,[249,115,22]],[25,[239,68,68]],[35,[217,70,239]]];   // mph
+const RAIN_STOPS = [[0.05,[147,197,253]],[0.5,[96,165,250]],[1.5,[37,99,235]],[4,[124,58,237]],[8,[219,39,119]]];        // mm/h
+function ramp(stops, v){
+  if(v<=stops[0][0]) return stops[0][1];
+  for(let i=1;i<stops.length;i++) if(v<=stops[i][0]){ const [a,ca]=stops[i-1], [b,cb]=stops[i], f=(v-a)/(b-a); return ca.map((c,j)=>c+(cb[j]-c)*f); }
+  return stops[stops.length-1][1];
+}
+const rgb = c => `rgb(${c.map(Math.round).join(',')})`;
+function tempColour(t){ return rgb(ramp(TEMP_STOPS, t)); }
+const gradCss = (stops, lo, hi) => `linear-gradient(90deg,${stops.filter(s=>s[0]>=lo&&s[0]<=hi).map(s=>`${rgb(s[1])} ${((s[0]-lo)/(hi-lo)*100).toFixed(0)}%`).join(',')})`;
+
+// A canvas that covers the visible map and is redrawn after every move/zoom
+const CanvasLayer = L => L.Layer.extend({
+  initialize(pane, draw, onHide){ this._pane = pane; this._draw = draw; this._onHide = onHide; },
+  onAdd(map){
+    this._map = map; this._c = L.DomUtil.create('canvas', 'leaflet-zoom-hide');
+    this._c.style.pointerEvents = 'none';
+    map.getPane(this._pane).appendChild(this._c);
+    map.on('moveend resize', this._reset, this); map.on('movestart zoomstart', this._hide, this);
+    this._reset();
+  },
+  onRemove(map){ L.DomUtil.remove(this._c); map.off('moveend resize', this._reset, this); map.off('movestart zoomstart', this._hide, this); },
+  _hide(){ this._c.style.visibility = 'hidden'; this._onHide && this._onHide(); },
+  _reset(){
+    const s = this._map.getSize(), dpr = Math.min(2, window.devicePixelRatio || 1);
+    this._c.width = s.x*dpr; this._c.height = s.y*dpr; this._c.style.width = s.x+'px'; this._c.style.height = s.y+'px';
+    L.DomUtil.setPosition(this._c, this._map.containerPointToLayerPoint([0,0]));
+    this._c.style.visibility = 'visible';
+    this._draw(this._c, dpr, s);
+  },
+  redraw(){ if(this._map) this._reset(); }
+});
+
+// --- smooth field sampling from the forecast grid ---
+function sampleF(arr, lat, lon){
+  const g = M.grid;
+  let fx = (lon - (g.w + g.dLon/2))/g.dLon, fy = (lat - (g.so + g.dLat/2))/g.dLat;
+  fx = Math.max(0, Math.min(g.nx-1, fx)); fy = Math.max(0, Math.min(g.ny-1, fy));
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(g.nx-1, x0+1), y1 = Math.min(g.ny-1, y0+1), tx = fx-x0, ty = fy-y0;
+  const a = arr[y0*g.nx+x0], b = arr[y0*g.nx+x1], c = arr[y1*g.nx+x0], d = arr[y1*g.nx+x1];
+  if(a==null || b==null || c==null || d==null) return a ?? b ?? c ?? d ?? null;
+  // smoothstep weights soften the grid pattern
+  const sx = tx*tx*(3-2*tx), sy = ty*ty*(3-2*ty);
+  return a*(1-sx)*(1-sy) + b*sx*(1-sy) + c*(1-sx)*sy + d*sx*sy;
+}
+function axes(size, step){
+  const lons = [], lats = [];
+  for(let i=0;i*step<=size.x+step;i++) lons.push(M.map.containerPointToLatLng([i*step, 0]).lng);
+  for(let j=0;j*step<=size.y+step;j++) lats.push(M.map.containerPointToLatLng([0, j*step]).lat);
+  return {lons, lats};
+}
+
+function buildFields(){
+  const g = M.grid, k = M.fcIdx, F = {temp:[], cloud:[], rain:[], u:[], v:[], spd:[]};
+  g.data.forEach((d, idx) => {
+    const h = d.hourly, s = h.wind_speed_10m[k], dir = h.wind_direction_10m[k];
+    F.temp[idx] = h.temperature_2m[k]; F.cloud[idx] = h.cloud_cover[k]; F.rain[idx] = h.precipitation[k]; F.spd[idx] = s;
+    const r = (dir ?? 0) * Math.PI/180;
+    F.u[idx] = s==null ? 0 : -s*Math.sin(r);   // blowing towards east +
+    F.v[idx] = s==null ? 0 : -s*Math.cos(r);   // blowing towards north +
+  });
+  M.fields = F;
+}
+
+// --- temperature / cloud / rain as smooth colour layers ---
+function drawFields(c, dpr, size){
+  const ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height);
+  if(!M.grid || !M.fields || !(LAYERS.temp || LAYERS.rain || LAYERS.cloud)) return;
+  const step = 6, {lons, lats} = axes(size, step), cols = lons.length, rows = lats.length, F = M.fields;
+  const off = document.createElement('canvas'); off.width = cols; off.height = rows;
+  const octx = off.getContext('2d'), img = octx.createImageData(cols, rows), D = img.data;
+  for(let j=0;j<rows;j++) for(let i=0;i<cols;i++){
+    let r=0, g=0, b=0, a=0;
+    const over = (cc, ca) => { const na = ca + a*(1-ca); if(na<=0) return; r = (cc[0]*ca + r*a*(1-ca))/na; g = (cc[1]*ca + g*a*(1-ca))/na; b = (cc[2]*ca + b*a*(1-ca))/na; a = na; };
+    const lat = lats[j], lon = lons[i];
+    if(LAYERS.temp){ const t = sampleF(F.temp, lat, lon); if(t!=null) over(ramp(TEMP_STOPS, t), .42); }
+    if(LAYERS.cloud){ const cc = sampleF(F.cloud, lat, lon); if(cc!=null && cc>10) over([238,242,248], Math.min(.6, (cc-10)/90*.6)); }
+    if(LAYERS.rain){ const p = sampleF(F.rain, lat, lon); if(p!=null && p>=0.05) over(ramp(RAIN_STOPS, p), Math.min(.82, .28 + p*.14)); }
+    const o = (j*cols+i)*4; D[o]=r; D[o+1]=g; D[o+2]=b; D[o+3]=a*255;
+  }
+  octx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(off, 0, 0, cols, rows, 0, 0, cols*step*dpr, rows*step*dpr);
+}
+
+// --- wind: flowing particle streaks coloured by strength ---
+const P = { parts:[], vx:null, vy:null, sp:null, cols:0, rows:0, cell:8, ctx:null, c:null, dpr:1, raf:0 };
+const WIND_BUCKETS = [0, 6, 12, 18, 25, 35].map((mph, i, a) => ({min:mph, max:a[i+1] ?? 999, col:rgb(ramp(WIND_STOPS, mph + 2))}));
+function windStop(){ if(P.raf){ cancelAnimationFrame(P.raf); P.raf = 0; } }
+function windClear(){ windStop(); if(P.ctx) P.ctx.clearRect(0, 0, P.c.width, P.c.height); }
+function windReset(c, dpr, size){
+  P.c = c; P.dpr = dpr; P.ctx = c.getContext('2d'); windClear();
+  if(!M.grid || !M.fields || !LAYERS.wind) return;
+  const cell = P.cell, {lons, lats} = axes(size, cell), cols = lons.length, rows = lats.length, F = M.fields;
+  P.cols = cols; P.rows = rows; P.vx = new Float32Array(cols*rows); P.vy = new Float32Array(cols*rows); P.sp = new Float32Array(cols*rows);
+  const k = 0.085 * dpr;   // pixels per frame per mph
+  for(let j=0;j<rows;j++) for(let i=0;i<cols;i++){
+    const u = sampleF(F.u, lats[j], lons[i]) || 0, v = sampleF(F.v, lats[j], lons[i]) || 0, n = j*cols+i;
+    P.vx[n] = u*k; P.vy[n] = -v*k; P.sp[n] = Math.hypot(u, v);
+  }
+  const count = Math.round(Math.min(1500, size.x*size.y/260));
+  P.parts = Array.from({length:count}, () => spawn({}));
+  windStart();
+}
+function spawn(p){ p.x = Math.random()*P.c.width; p.y = Math.random()*P.c.height; p.age = Math.floor(Math.random()*80); p.max = 50 + Math.random()*60; return p; }
+function windStart(){ if(!P.raf && LAYERS.wind && M.visible && P.vx && !document.hidden) P.raf = requestAnimationFrame(windFrame); }
+function windFrame(){
+  P.raf = 0;
+  if(!LAYERS.wind || !M.visible || document.hidden || !P.vx) return;
+  const ctx = P.ctx, W = P.c.width, H = P.c.height, cell = P.cell*P.dpr;
+  ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = 'rgba(0,0,0,0.93)'; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'source-over';
+  const segs = WIND_BUCKETS.map(() => []);
+  for(const p of P.parts){
+    const ci = (p.x/cell)|0, cj = (p.y/cell)|0;
+    if(p.age++ > p.max || ci<0 || cj<0 || ci>=P.cols || cj>=P.rows){ spawn(p); p.age = 0; continue; }
+    const n = cj*P.cols + ci, nx = p.x + P.vx[n], ny = p.y + P.vy[n], s = P.sp[n];
+    let b = 0; while(b < WIND_BUCKETS.length-1 && s >= WIND_BUCKETS[b].max) b++;
+    segs[b].push(p.x, p.y, nx, ny);
+    p.x = nx; p.y = ny;
+  }
+  ctx.lineWidth = 1.6*P.dpr; ctx.lineCap = 'round';
+  segs.forEach((arr, b) => {
+    if(!arr.length) return;
+    ctx.strokeStyle = WIND_BUCKETS[b].col; ctx.beginPath();
+    for(let i=0;i<arr.length;i+=4){ ctx.moveTo(arr[i], arr[i+1]); ctx.lineTo(arr[i+2], arr[i+3]); }
+    ctx.stroke();
+  });
+  P.raf = requestAnimationFrame(windFrame);
+}
+document.addEventListener('visibilitychange', () => { if(!document.hidden) windStart(); });
+
+// --- weather icons (sparse) ---
+function drawIcons(){
+  if(!M.iconGroup) return;
+  M.iconGroup.clearLayers();
+  if(!M.grid) return;
+  const g = M.grid, k = M.fcIdx, sx = Math.max(2, Math.round(g.nx/4)), sy = Math.max(2, Math.round(g.ny/5));
+  for(let j=1;j<g.ny;j+=sy) for(let i=1;i<g.nx;i+=sx){
+    const idx = j*g.nx+i, h = g.data[idx] && g.data[idx].hourly; if(!h || h.weather_code[k]==null) continue;
+    M.iconGroup.addLayer(L.marker([g.pts[idx].lat, g.pts[idx].lon], {pane:'labels', interactive:false,
+      icon:L.divIcon({className:'', iconSize:[34,34], iconAnchor:[17,17], html:`<span class="mk-i">${WI(h.weather_code[k], h.is_day ? h.is_day[k] : 1, 34)}</span>`})}));
+  }
+}
+
+function updateLegend(){
+  const parts = [];
+  if(LAYERS.temp) parts.push(`<span class="lg">🌡️ <span>-5°</span><span class="bar" style="background:${gradCss(TEMP_STOPS,-5,32)}"></span><span>30°</span></span>`);
+  if(LAYERS.wind){ const top = S.unit==='mph' ? '35 mph' : '56 km/h'; parts.push(`<span class="lg">🌬️ <span>0</span><span class="bar" style="background:${gradCss(WIND_STOPS,0,35)}"></span><span>${top}</span></span>`); }
+  if(LAYERS.rain) parts.push(`<span class="lg">🌧️ <span>light</span><span class="bar" style="background:${gradCss(RAIN_STOPS,0.05,8)}"></span><span>heavy</span></span>`);
+  $('mapLegend').innerHTML = parts.join('');
+}
+
+// redraw everything that depends on the forecast hour
+function drawGrid(){
+  if(!M.map || !M.grid) { updateLegend && M.map && updateLegend(); return; }
+  buildFields();
+  const t = M.grid.data[0].hourly.time[M.fcIdx];
+  $('fcTime').textContent = t ? `${dayLabel(t).split(' ')[0].slice(0,3)} ${hhmm(t)}` : '–';
+  M.fieldLayer.redraw(); M.windLayer.redraw(); drawIcons(); updateLegend();
 }
 
 function showMap(){
   if(typeof L==='undefined'){ $('mapStatus').innerHTML='<span class="err">map library failed to load</span>'; return; }
+  M.visible = true;
   if(!M.map){
     M.map = L.map('map', {zoomControl:true, attributionControl:true}).setView([S.loc.lat, S.loc.lon], 8);
     M.base = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, className:'maptiles ' + (store.get('mapStyle','light')),
+      maxZoom: 19, className:'maptiles ' + store.get('mapStyle','light'),
       attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://www.rainviewer.com/">Rain Viewer</a> · <a href="https://open-meteo.com/">Open-Meteo</a>'
     }).addTo(M.map);
-    M.map.createPane('fc');   M.map.getPane('fc').style.zIndex = 350;
-    M.map.createPane('radar');M.map.getPane('radar').style.zIndex = 360;
-    M.map.createPane('labels');M.map.getPane('labels').style.zIndex = 650;
-    ['cloud','rain','wx','temp','wind'].forEach(k => M.groups[k] = L.layerGroup());
-    M.groups.radar = L.layerGroup();
-    Object.entries(M.groups).forEach(([k,g]) => { if(LAYERS[k]) g.addTo(M.map); });
+    M.map.createPane('fields'); M.map.getPane('fields').style.zIndex = 350;
+    M.map.createPane('radar');  M.map.getPane('radar').style.zIndex = 360;
+    M.map.createPane('wind');   M.map.getPane('wind').style.zIndex = 450;
+    M.map.createPane('labels'); M.map.getPane('labels').style.zIndex = 650;
+    const CL = CanvasLayer(L);
+    M.fieldLayer = new CL('fields', drawFields).addTo(M.map);
+    M.windLayer = new CL('wind', windReset, windClear).addTo(M.map);
+    M.radarGroup = L.layerGroup(); M.iconGroup = L.layerGroup();
+    if(LAYERS.radar) M.radarGroup.addTo(M.map);
+    if(LAYERS.wx) M.iconGroup.addTo(M.map);
     document.querySelectorAll('#layerBox input').forEach(cb => {
       cb.checked = !!LAYERS[cb.dataset.l];
       cb.onchange = () => {
-        LAYERS[cb.dataset.l] = cb.checked; store.set('layers', LAYERS);
-        const g = M.groups[cb.dataset.l];
-        cb.checked ? g.addTo(M.map) : M.map.removeLayer(g);
-        $('radarRow').style.display = LAYERS.radar ? '' : 'none';
+        const l = cb.dataset.l; LAYERS[l] = cb.checked; store.set('layers2', LAYERS);
+        if(l==='radar'){ cb.checked ? M.radarGroup.addTo(M.map) : M.map.removeLayer(M.radarGroup); $('radarRow').style.display = cb.checked ? '' : 'none'; }
+        else if(l==='wx'){ cb.checked ? M.iconGroup.addTo(M.map) : M.map.removeLayer(M.iconGroup); }
+        else if(l==='wind'){ M.windLayer.redraw(); }
+        else M.fieldLayer.redraw();
+        updateLegend();
       };
     });
     $('radarRow').style.display = LAYERS.radar ? '' : 'none';
@@ -887,15 +968,16 @@ function showMap(){
       const st = store.get('mapStyle','light')==='light' ? 'dark' : 'light'; store.set('mapStyle', st);
       const el = M.base.getContainer(); el.classList.remove('light','dark'); el.classList.add(st); styleLbl();
     };
-    M.map.on('moveend', () => { clearTimeout(M.timers.move); M.timers.move = setTimeout(loadGrid, 500); });
+    M.map.on('moveend', () => { clearTimeout(M.timers.move); M.timers.move = setTimeout(loadGrid, 400); });
     $('fcSlider').oninput = e => { M.fcTouched = true; M.fcIdx = +e.target.value; drawGrid(); };
     $('radarSlider').oninput = e => showRadar(+e.target.value);
     $('fcPlay').onclick = () => togglePlay('fc');
     $('radarPlay').onclick = () => togglePlay('radar');
     loadRadar();
-    setInterval(() => { if(!$('tab-map').hidden) loadRadar(); }, 5*60000);
+    setInterval(() => { if(M.visible) loadRadar(); }, 5*60000);
+    updateLegend();
   }
-  setTimeout(() => M.map.invalidateSize(), 50);
+  setTimeout(() => { M.map.invalidateSize(); M.fieldLayer.redraw(); M.windLayer.redraw(); }, 60);
   placeMe();
   loadGrid();
 }
@@ -906,7 +988,6 @@ function placeMe(){
   if(!M.me) M.me = L.marker(ll, {icon:L.divIcon({className:'', html:'<div class="mylocdot"></div>', iconSize:[14,14], iconAnchor:[7,7]}), interactive:false, pane:'labels'}).addTo(M.map);
   else M.me.setLatLng(ll);
 }
-
 function centreMap(){ if(M.map){ M.map.setView([S.loc.lat, S.loc.lon], M.map.getZoom()); placeMe(); } }
 
 function togglePlay(which){
@@ -917,7 +998,7 @@ function togglePlay(which){
     const max = +slider.max, v = (+slider.value + 1) % (max + 1);
     slider.value = v;
     which==='fc' ? (M.fcIdx = v, drawGrid()) : showRadar(v);
-  }, which==='fc' ? 700 : 600);
+  }, which==='fc' ? 900 : 600);
 }
 
 // --- Rain Viewer radar (past ~2 h, free tier: max zoom 7) ---
@@ -927,89 +1008,53 @@ async function loadRadar(){
     M.radarHost = d.host;
     M.radarFrames = (d.radar && d.radar.past) || [];
     const keep = new Set(M.radarFrames.map(f=>f.path));
-    Object.keys(M.radarLayers).forEach(p => { if(!keep.has(p)){ M.groups.radar.removeLayer(M.radarLayers[p]); delete M.radarLayers[p]; } });
+    Object.keys(M.radarLayers).forEach(p => { if(!keep.has(p)){ M.radarGroup.removeLayer(M.radarLayers[p]); delete M.radarLayers[p]; } });
     $('radarSlider').max = Math.max(0, M.radarFrames.length-1);
     showRadar(M.radarFrames.length-1);
   }catch(e){ $('radarTime').textContent = 'unavailable'; }
 }
-
 function radarLayer(f){
   if(!M.radarLayers[f.path]){
-    M.radarLayers[f.path] = L.tileLayer(`${M.radarHost}${f.path}/256/{z}/{x}/{y}/2/1_1.png`, {
-      pane:'radar', opacity:0, maxNativeZoom:7, maxZoom:18, tileSize:256, zIndex:1
-    });
-    M.groups.radar.addLayer(M.radarLayers[f.path]);
+    M.radarLayers[f.path] = L.tileLayer(`${M.radarHost}${f.path}/256/{z}/{x}/{y}/2/1_1.png`, {pane:'radar', opacity:0, maxNativeZoom:7, maxZoom:18, tileSize:256, zIndex:1});
+    M.radarGroup.addLayer(M.radarLayers[f.path]);
   }
   return M.radarLayers[f.path];
 }
-
 function showRadar(i){
   if(!M.radarFrames.length || i<0) return;
-  M.radarIdx = i; $('radarSlider').value = i;
+  $('radarSlider').value = i;
   const f = M.radarFrames[i];
-  radarLayer(f).setOpacity(0.75);
+  radarLayer(f).setOpacity(0.7);
   Object.entries(M.radarLayers).forEach(([p,l]) => { if(p!==f.path) l.setOpacity(0); });
-  // pre-load the next frame for smooth playback
   if(M.radarFrames[i+1]) radarLayer(M.radarFrames[i+1]);
-  const t = new Date(f.time*1000);
-  const mins = Math.round((Date.now()-t)/60000);
+  const t = new Date(f.time*1000), mins = Math.round((Date.now()-t)/60000);
   $('radarTime').textContent = t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + (mins>2?` (${mins}m ago)`:'');
 }
 
-// --- Open-Meteo forecast grid ---
+// --- Open-Meteo forecast grid (denser, padded beyond the view) ---
 async function loadGrid(){
   if(!M.map) return;
-  const b = M.map.getBounds(), size = M.map.getSize();
-  const nx = Math.max(3, Math.min(8, Math.floor(size.x / 84))), ny = Math.max(3, Math.min(9, Math.floor(size.y / 88)));
-  const n = b.getNorth(), so = b.getSouth(), w = b.getWest(), e = b.getEast();
-  const dLat = (n-so)/ny, dLon = (e-w)/nx;
+  const view = M.map.getBounds(), z = M.map.getZoom();
+  if(M.grid && M.grid.zoom===z && M.grid.bounds.contains(view)) return;   // still covered
+  const b = view.pad(0.2), size = M.map.getSize();
+  const nx = Math.max(6, Math.min(11, Math.round(size.x/36))), ny = Math.max(6, Math.min(14, Math.round(size.y/36)));
+  const n = b.getNorth(), so = b.getSouth(), w = b.getWest(), e = b.getEast(), dLat = (n-so)/ny, dLon = (e-w)/nx;
   const pts = [];
   for(let j=0;j<ny;j++) for(let i=0;i<nx;i++) pts.push({lat:+(so+dLat*(j+.5)).toFixed(3), lon:+(w+dLon*(i+.5)).toFixed(3)});
-  const key = pts.map(p=>p.lat+','+p.lon).join(';');
-  if(key===M.gridKey) return;
-  $('mapStatus').textContent = 'loading forecast…';
+  $('mapStatus').textContent = 'loading…';
   const url = `${API}?latitude=${pts.map(p=>p.lat).join(',')}&longitude=${pts.map(p=>p.lon).join(',')}`
     + `&hourly=temperature_2m,cloud_cover,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m&forecast_hours=24&timezone=auto&wind_speed_unit=mph`;
   try{
     let d = await getJSON(url);
     if(!Array.isArray(d)) d = [d];
-    M.grid = {pts, dLat, dLon, data:d};
-    M.gridKey = key;
-    const times = d[0].hourly.time;
-    M.gridOffset = d[0].utc_offset_seconds || 0;
+    M.grid = {pts, so, w, dLat, dLon, nx, ny, data:d, zoom:z, bounds:L.latLngBounds([so, w], [n, e])};
+    const times = d[0].hourly.time, off = d[0].utc_offset_seconds || 0;
     $('fcSlider').max = times.length-1;
+    if(!M.fcTouched){ const i = times.findIndex(t => Date.parse(t+':00Z') - off*1000 + 3600000 > Date.now()); M.fcIdx = Math.max(0,i); $('fcSlider').value = M.fcIdx; }
     if(M.fcIdx > times.length-1) M.fcIdx = 0;
-    // start the slider at the current hour
-    const now = Date.now();
-    if(!M.fcTouched){ const i = times.findIndex(t => Date.parse(t+':00Z') - M.gridOffset*1000 + 3600000 > now); M.fcIdx = Math.max(0,i); $('fcSlider').value = M.fcIdx; }
     $('mapStatus').textContent = '';
     drawGrid();
-  }catch(e){ $('mapStatus').innerHTML = `<span class="err">forecast grid failed (${e.message})</span>`; }
-}
-
-function windBadge(dir, mph){
-  const col = windColour(mph), rot = (dir+180)%360;
-  return `<div class="mk-w"><svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="${col}"/><g transform="rotate(${rot} 12 12)"><path d="M12 4.5 L16.5 13 L13 11.6 L13 19 L11 19 L11 11.6 L7.5 13 Z" fill="#fff"/></g></svg>${fmtSpd(mph)}</div>`;
-}
-
-function drawGrid(){
-  if(!M.grid) return;
-  const {pts, dLat, dLon, data} = M.grid, k = M.fcIdx;
-  ['cloud','rain','wx','temp','wind'].forEach(g => M.groups[g].clearLayers());
-  const t = data[0].hourly.time[k];
-  $('fcTime').textContent = t ? `${dayLabel(t).split(' ')[0].slice(0,3)} ${hhmm(t)}` : '–';
-  pts.forEach((p, idx) => {
-    const h = data[idx] && data[idx].hourly; if(!h) return;
-    const cc = h.cloud_cover[k], pr = h.precipitation[k], te = h.temperature_2m[k], ws = h.wind_speed_10m[k], wd = h.wind_direction_10m[k];
-    const code = h.weather_code ? h.weather_code[k] : null, day = h.is_day ? h.is_day[k] : 1;
-    const bounds = [[p.lat-dLat/2, p.lon-dLon/2],[p.lat+dLat/2, p.lon+dLon/2]];
-    if(cc!=null && cc>5) M.groups.cloud.addLayer(L.rectangle(bounds, {pane:'fc', stroke:false, fillColor:'#cbd5e1', fillOpacity:cc/100*.4, interactive:false}));
-    if(pr!=null && pr>=0.05) M.groups.rain.addLayer(L.rectangle(bounds, {pane:'fc', stroke:false, fillColor:pr<0.5?'#60a5fa':pr<2?'#2563eb':pr<5?'#7c3aed':'#db2777', fillOpacity:Math.min(.6, .25+pr*.1), interactive:false}));
-    const mk = (lat, html, w, hgt) => L.marker([lat, p.lon], {pane:'labels', interactive:false, icon:L.divIcon({className:'', iconSize:[w,hgt], iconAnchor:[w/2,hgt/2], html:`<div class="mk">${html}</div>`})});
-    if(code!=null) M.groups.wx.addLayer(mk(p.lat+dLat*0.26, `<span class="mk-i">${WI(code, day, 30)}</span>`, 34, 30));
-    if(te!=null) M.groups.temp.addLayer(mk(p.lat+dLat*0.02, `<span class="mk-t"><i style="background:${tempColour(te)}"></i>${Math.round(te)}°</span>`, 48, 18));
-    if(ws!=null && wd!=null) M.groups.wind.addLayer(mk(p.lat-dLat*0.24, windBadge(wd, ws), 56, 22));
-  });
+  }catch(e){ $('mapStatus').innerHTML = `<span class="err">forecast failed (${e.message})</span>`; }
 }
 
 // ---------- location & search ----------
@@ -1061,10 +1106,21 @@ $('modelSel').innerHTML = `<option value="best_match">Best match</option>` + MOD
 $('modelSel').value = S.model;
 $('modelSel').onchange = e => { S.model = e.target.value; store.set('model', S.model); load(); };
 
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
-  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on', x===b));
-  ['hourly','compare','map'].forEach(t => $('tab-'+t).hidden = b.dataset.tab!==t);
-  if(b.dataset.tab==='map') showMap();
+// ---------- collapsible sections ----------
+const FOLD = Object.assign({models:true, table:false, hourly:true, map:true, ride:true}, store.get('fold', {}));
+function setFold(el, open){
+  el.classList.toggle('closed', !open);
+  FOLD[el.dataset.fold] = open; store.set('fold', FOLD);
+  if(el.dataset.fold==='map'){ M.visible = open; if(open) showMap(); else windStop(); }
+  if(el.dataset.fold==='models' && open && CMP) drawCompareCharts();
+}
+document.querySelectorAll('[data-fold]').forEach(el => {
+  const head = el.querySelector(':scope > .foldhead');
+  el.classList.toggle('closed', FOLD[el.dataset.fold]===false);
+  head.addEventListener('click', e => {
+    if(e.target.closest('select,input,a,.seg,.btn')) return;
+    setFold(el, el.classList.contains('closed'));
+  });
 });
 
 $('rideLen').value = String(S.rideLen);
@@ -1122,6 +1178,7 @@ fsLabel();
 
 load();
 refreshSrv();
+if(FOLD.map) setTimeout(showMap, 300);
 </script>
 </body>
 </html>
