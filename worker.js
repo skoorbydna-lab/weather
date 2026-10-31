@@ -11,6 +11,20 @@
 //   Variable  HOME_LAT / HOME_LON  (optional) used until a location has been sent
 // Cron trigger:  */10 * * * *
 
+// ---- EASY SETUP: fill these in here instead of using "Variables and Secrets" ----
+const CONFIG = {
+  KEY: '',          // your secret key
+  NTFY_TOPIC: '',   // your ntfy topic
+  APP_URL: 'https://skoorbydna-lab.github.io/ride-weather/',
+};
+// ---------------------------------------------------------------------------------
+
+function withConfig(env) {
+  const e = Object.create(env);
+  for (const k of Object.keys(CONFIG)) if (!env[k] && CONFIG[k]) e[k] = CONFIG[k];
+  return e;
+}
+
 const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6 };
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -95,6 +109,7 @@ async function check(env, force) {
 
 export default {
   async fetch(req, env) {
+    env = withConfig(env);
     if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
     const url = new URL(req.url);
 
@@ -155,6 +170,7 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
+    env = withConfig(env);
     ctx.waitUntil(check(env, false));
   },
 };
