@@ -85,6 +85,7 @@ footer a{color:inherit}
 .slider{display:flex;align-items:center;gap:8px;margin-top:8px}
 .slider input{flex:1}
 .mylocdot{width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.35)}
+.darktiles{filter:invert(1) hue-rotate(200deg) brightness(.85) contrast(.9) saturate(.6)}
 .scale{display:flex;height:8px;border-radius:4px;overflow:hidden;flex:1;max-width:180px}
 
 </style>
@@ -222,7 +223,7 @@ footer a{color:inherit}
   </section>
 
   <footer>
-    <a href="https://open-meteo.com/">Weather data by Open-Meteo.com</a> (CC BY 4.0) · models: UK Met Office, ECMWF, DWD, NOAA, Météo-France · radar: <a href="https://www.rainviewer.com/">Rain Viewer</a> · map © OpenStreetMap, CARTO
+    <a href="https://open-meteo.com/">Weather data by Open-Meteo.com</a> (CC BY 4.0) · models: UK Met Office, ECMWF, DWD, NOAA, Météo-France · radar: <a href="https://www.rainviewer.com/">Rain Viewer</a> · map © OpenStreetMap
   </footer>
 </div>
 
@@ -573,9 +574,9 @@ function showMap(){
   if(typeof L==='undefined'){ $('mapStatus').innerHTML='<span class="err">map library failed to load</span>'; return; }
   if(!M.map){
     M.map = L.map('map', {zoomControl:true, attributionControl:true}).setView([S.loc.lat, S.loc.lon], 8);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 18, subdomains:'abcd',
-      attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a> · <a href="https://www.rainviewer.com/">Rain Viewer</a> · <a href="https://open-meteo.com/">Open-Meteo</a>'
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, className:'darktiles',
+      attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://www.rainviewer.com/">Rain Viewer</a> · <a href="https://open-meteo.com/">Open-Meteo</a>'
     }).addTo(M.map);
     M.map.createPane('fc');   M.map.getPane('fc').style.zIndex = 350;
     M.map.createPane('radar');M.map.getPane('radar').style.zIndex = 360;
