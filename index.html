@@ -281,7 +281,8 @@ function arrowSvg(dir, colour, size=22){
 }
 
 async function getJSON(url, opts){
-  const r = await fetch(url, opts);
+  let r;
+  try{ r = await fetch(url, opts); }catch(e){ throw new Error('no connection'); }
   if(!r.ok){ let m = r.status; try{ const j = await r.json(); m = j.reason || j.error || m; }catch(e){} throw new Error(m); }
   return r.json();
 }
@@ -778,7 +779,15 @@ $('srvSave').onclick = async () => {
   S.srv = {url:$('srvUrl').value.trim(), key:$('srvKey').value.trim()}; store.set('srv', S.srv);
   await refreshSrv(); if(S.srvState){ showSrvState('Connected ✓', 'okc'); sendLocation(true); }
 };
-$('srvTest').onclick = async () => { try{ await srv('/test'); showSrvState('Test sent – check ntfy', 'okc'); }catch(e){ showSrvState(`Test failed (${e.message})`, 'err'); } };
+$('srvTest').onclick = async () => {
+  if(!srvOK()){ showSrvState('Enter the server address and key, then tap Save & connect first', 'err'); return; }
+  showSrvState('Sending test…');
+  try{
+    const r = await srv('/test');
+    r.ok ? showSrvState(`Test sent to topic "${r.topic}" – check ntfy`, 'okc')
+         : showSrvState(`Server reached, but ntfy refused it (${r.status||''} ${r.error||''}) – topic "${r.topic||'?'}"`, 'err');
+  }catch(e){ showSrvState(`Couldn't reach your server: ${e.message}. Check the address (no /status on the end) and key.`, 'err'); }
+};
 $('srvCheck').onclick = async () => {
   try{ const r = await srv('/check'); showSrvState(r.dry ? 'Checked: dry for the next hour (notification sent)' : r.alerted ? 'Checked: rain due – alert sent' : (r.skipped || r.error || 'Checked'), 'okc'); }
   catch(e){ showSrvState(`Check failed (${e.message})`, 'err'); }

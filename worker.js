@@ -56,8 +56,14 @@ function inQuiet(h, start, end) {
 async function notify(env, title, body, tags = 'cloud_with_rain', priority = 'high') {
   const headers = { Title: title, Tags: tags, Priority: priority };
   if (env.APP_URL) headers.Click = env.APP_URL;
-  const r = await fetch(`https://ntfy.sh/${encodeURIComponent(env.NTFY_TOPIC)}`, { method: 'POST', body, headers });
-  return r.ok;
+  if (!env.NTFY_TOPIC) return { ok: false, error: 'NTFY_TOPIC is not set' };
+  try {
+    const r = await fetch(`https://ntfy.sh/${encodeURIComponent(env.NTFY_TOPIC)}`, { method: 'POST', body, headers });
+    const text = r.ok ? '' : (await r.text()).slice(0, 200);
+    return { ok: r.ok, status: r.status, topic: env.NTFY_TOPIC, error: text || undefined };
+  } catch (e) {
+    return { ok: false, topic: env.NTFY_TOPIC, error: String(e) };
+  }
 }
 
 async function check(env, force) {
@@ -160,8 +166,8 @@ export default {
     }
 
     if (path === '/test') {
-      const ok = await notify(env, 'Test alert', 'ntfy is working - rain alerts will arrive here.', 'bell', 'default');
-      return json({ ok });
+      const r = await notify(env, 'Test alert', 'ntfy is working - rain alerts will arrive here.', 'bell', 'default');
+      return json(r);
     }
 
     if (path === '/check') return json(await check(env, true));
