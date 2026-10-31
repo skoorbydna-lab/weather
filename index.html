@@ -25,7 +25,15 @@ html.fs-s{font-size:13px} html.fs-l{font-size:17.5px} html.fs-xl{font-size:20px}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:1rem}
 .wrap{max-width:760px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
 header{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-h1{font-size:1.15rem;margin:0;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbtns{display:flex;gap:5px;flex:0 0 auto}
+.hbtns .btn{padding:.4em .55em;min-width:2.3rem}
+.brand{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0}
+.logo{width:2.6rem;height:2.6rem;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.35)}
+.appname{font-size:1.35rem;font-weight:800;letter-spacing:-.01em;line-height:1.1;white-space:nowrap}
+.appname span{background:linear-gradient(90deg,#5eb3ff,#8fd3ff);-webkit-background-clip:text;background-clip:text;color:transparent;margin-left:.2em}
+.place{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.place span{overflow:hidden;text-overflow:ellipsis}
+.wi{display:inline-block;vertical-align:middle}
 button,select,input{font:inherit;color:inherit}
 .btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:.45em .75em;cursor:pointer}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -43,12 +51,13 @@ button,select,input{font:inherit;color:inherit}
 .nowWind{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:7.5rem}
 .nowWind .compass{width:4.6rem;height:4.6rem}
 .nowWind .windline{font-size:1rem;margin-top:4px}
-.bigicon{font-size:3.4rem;line-height:1}
+.bigicon{line-height:0}
+.bigicon svg{width:5.4rem;height:5.4rem;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))}
 .days{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch}
 .days::-webkit-scrollbar{height:4px}.days::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
 .day{flex:0 0 5.4rem;scroll-snap-align:start;border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center;background:var(--bg);cursor:pointer;font-size:.85rem;line-height:1.35}
 .day.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-.day .dn{font-weight:700}.day .ic{font-size:1.6rem;line-height:1.3}
+.day .dn{font-weight:700}.day .ic{line-height:0;margin:2px 0}
 .day .hi{font-weight:700;font-size:1rem}
 .compass{width:7rem;height:7rem}
 .bigtemp{font-size:3.4rem;font-weight:700;line-height:1}
@@ -101,7 +110,14 @@ footer a{color:inherit}
 .slider{display:flex;align-items:center;gap:8px;margin-top:8px}
 .slider input{flex:1}
 .mylocdot{width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 0 0 3px rgba(79,140,255,.35)}
-.darktiles{filter:invert(1) hue-rotate(200deg) brightness(.85) contrast(.9) saturate(.6)}
+.maptiles.dark{filter:invert(1) hue-rotate(185deg) brightness(1.05) contrast(.88) saturate(.55)}
+.maptiles.light{filter:saturate(.85) brightness(.97)}
+.mk{pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mk-t{font:700 12px/18px system-ui,sans-serif;color:#fff;background:rgba(9,22,52,.82);border-radius:9px;padding:0 6px 0 4px;box-shadow:0 1px 4px rgba(0,0,0,.35);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.mk-t i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.mk-w{display:flex;align-items:center;gap:3px;background:rgba(255,255,255,.92);border-radius:12px;padding:1px 6px 1px 1px;box-shadow:0 1px 4px rgba(0,0,0,.35);font:700 11px/1 system-ui,sans-serif;color:#0a1a3a;white-space:nowrap}
+.mk-w svg{display:block}
+.mk-i svg{filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .scale{display:flex;height:8px;border-radius:4px;overflow:hidden;flex:1;max-width:180px}
 
 </style>
@@ -109,11 +125,19 @@ footer a{color:inherit}
 <body>
 <div class="wrap">
   <header>
-    <h1 id="place">Ride Weather</h1>
-    <button class="btn" id="locBtn" title="Forecast for my location">📍</button>
-    <button class="btn" id="unitBtn" title="Switch wind units">mph</button>
-    <button class="btn" id="refreshBtn" title="Refresh">↻</button>
-    <button class="btn" id="setBtn" title="Settings">⚙</button>
+    <div class="brand">
+      <img src="icon-192.png" alt="" class="logo">
+      <div style="min-width:0">
+        <div class="appname">Ride<span>Weather</span></div>
+        <div class="place"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg><span id="place">–</span></div>
+      </div>
+    </div>
+    <div class="hbtns">
+      <button class="btn" id="locBtn" title="Forecast for my location">📍</button>
+      <button class="btn" id="unitBtn" title="Switch wind units">mph</button>
+      <button class="btn" id="refreshBtn" title="Refresh">↻</button>
+      <button class="btn" id="setBtn" title="Settings">⚙</button>
+    </div>
     <form class="search" id="searchForm">
       <input id="q" placeholder="Search a town…" autocomplete="off">
       <button class="btn primary" type="submit">Go</button>
@@ -214,8 +238,10 @@ footer a{color:inherit}
       <label><input type="checkbox" data-l="radar" checked> 📡 Radar</label>
       <label><input type="checkbox" data-l="rain"> 🌧️ Rain forecast</label>
       <label><input type="checkbox" data-l="cloud"> ☁️ Cloud</label>
+      <label><input type="checkbox" data-l="wx" checked> ⛅ Weather</label>
       <label><input type="checkbox" data-l="temp" checked> 🌡️ Temp</label>
       <label><input type="checkbox" data-l="wind" checked> 🌬️ Wind</label>
+      <button class="btn sm" id="mapStyleBtn" style="border-radius:999px"></button>
     </div>
     <div id="map"></div>
     <div class="slider small" id="radarRow">
@@ -291,6 +317,45 @@ const WX = {0:['☀️','Clear'],1:['🌤️','Mostly clear'],2:['⛅','Partly c
   82:['⛈️','Violent showers'],85:['🌨️','Snow showers'],86:['🌨️','Heavy snow showers'],95:['⛈️','Thunderstorm'],96:['⛈️','Thunder + hail'],99:['⛈️','Thunder + hail']};
 const wx = c => WX[c] || ['',''];
 
+
+// ---------- weather icons (SVG) ----------
+const WI = (() => {
+  const sun = (cx,cy,r) => { let s=''; for(let i=0;i<8;i++){ const a=i*Math.PI/4, r1=r+4, r2=r+9;
+      s+=`<line x1="${cx+r1*Math.cos(a)}" y1="${cy+r1*Math.sin(a)}" x2="${cx+r2*Math.cos(a)}" y2="${cy+r2*Math.sin(a)}" stroke="#FDB813" stroke-width="3.2" stroke-linecap="round"/>`; }
+    return s + `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#wiSun)"/>`; };
+  const moon = (cx,cy,r) => `<path d="M${cx+r*.35} ${cy-r} a${r} ${r} 0 1 0 ${r*.65} ${r*1.55} a${r*.85} ${r*.85} 0 0 1 -${r*.65} -${r*1.55}z" fill="#E9EEF9"/>`;
+  const cloud = (fill, tx=0, ty=0, sc=1) => `<g transform="translate(${tx} ${ty}) scale(${sc})"><g fill="${fill}"><circle cx="22" cy="37" r="10"/><circle cx="33" cy="29" r="13"/><circle cx="45" cy="37" r="9"/><rect x="12" y="35" width="42" height="12" rx="6"/></g></g>`;
+  const drops = n => { const xs = n===1?[32]:n===2?[26,38]:n===3?[22,32,42]:[19,28,37,46]; return xs.map(x=>`<line x1="${x}" y1="50" x2="${x-3}" y2="58" stroke="#4FA3FF" stroke-width="3.2" stroke-linecap="round"/>`).join(''); };
+  const drizzle = () => [22,32,42].map(x=>`<circle cx="${x}" cy="54" r="2" fill="#4FA3FF"/>`).join('');
+  const snow = () => [22,32,42].map((x,i)=>`<circle cx="${x}" cy="${53+(i%2)*4}" r="2.6" fill="#fff"/>`).join('');
+  const bolt = `<polygon points="33,44 26,55 32,55 29,63 39,51 33,51 36,44" fill="#FDB813"/>`;
+  const fog = `<g stroke="#B9C6DD" stroke-width="3.2" stroke-linecap="round"><line x1="12" y1="50" x2="52" y2="50"/><line x1="16" y1="57" x2="48" y2="57"/></g>`;
+  const LIGHT='#EEF3FB', MID='#C9D4E7', DARK='#8E9BB5';
+  const defs = `<defs><radialGradient id="wiSun" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#FFE27A"/><stop offset="1" stop-color="#FDB813"/></radialGradient></defs>`;
+  return (code, isDay=1, size=28) => {
+    const c = +code, body = (() => {
+      const orb = (x,y,r) => isDay ? sun(x,y,r) : moon(x,y,r);
+      if(c===0) return isDay ? sun(32,32,12) : moon(32,32,15);
+      if(c===1) return orb(26,24,10) + cloud(LIGHT, 14, 14, .72);
+      if(c===2) return orb(24,22,9) + cloud(LIGHT, 4, 4, .9);
+      if(c===3) return cloud(MID, -6, -4, .8) + cloud(LIGHT, 4, 4, .9);
+      if(c===45||c===48) return cloud(MID, 2, -8, .9) + fog;
+      if(c>=51&&c<=57) return cloud(MID, 0, -6) + drizzle();
+      if(c===61||c===66) return cloud(MID, 0, -6) + drops(2);
+      if(c===63) return cloud(MID, 0, -6) + drops(3);
+      if(c===65||c===67) return cloud(DARK, 0, -6) + drops(4);
+      if(c>=71&&c<=77) return cloud(MID, 0, -6) + snow();
+      if(c===80) return orb(20,16,7) + cloud(LIGHT, 2, -4, .95) + drops(2);
+      if(c===81) return cloud(MID, 0, -6) + drops(3);
+      if(c===82) return cloud(DARK, 0, -6) + drops(4);
+      if(c===85||c===86) return cloud(MID, 0, -6) + snow();
+      if(c>=95) return cloud(DARK, 0, -8) + bolt;
+      return cloud(MID);
+    })();
+    return `<svg class="wi" width="${size}" height="${size}" viewBox="0 0 64 64">${defs}${body}</svg>`;
+  };
+})();
+
 let OFFSET = 0;
 const toMs = t => Date.parse(t + ':00Z') - OFFSET*1000;
 const hhmm = t => t.slice(11,16);
@@ -319,7 +384,7 @@ async function load(){
   const common = `latitude=${lat}&longitude=${lon}&timezone=auto&wind_speed_unit=mph`;
   const hourlyVars = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day';
   const modelParam = S.model==='best_match' ? '' : `&models=${S.model}`;
-  const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
+  const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
     + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&forecast_days=14`
     + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant`;
   const cmpUrl = `${API}?${common}&models=${MODELS.map(m=>m.id).join(',')}&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=3`;
@@ -341,7 +406,7 @@ function renderAll(){ renderNow(); renderDays(); renderRain(); renderHourly(); r
 function renderNow(){
   const c = S.main.current;
   const [icon, desc] = wx(c.weather_code);
-  $('nowIcon').textContent = icon;
+  $('nowIcon').innerHTML = WI(c.weather_code, c.is_day ?? 1, 84);
   $('nowTemp').textContent = `${Math.round(c.temperature_2m)}°`;
   $('nowDesc').textContent = `${desc} · feels ${Math.round(c.apparent_temperature)}°`;
   $('nowWind').innerHTML = `<span style="color:${windColour(c.wind_speed_10m)}">${fmtSpd(c.wind_speed_10m)} ${S.unit}</span> ${dirName(c.wind_direction_10m)}`;
@@ -490,7 +555,7 @@ function renderDays(){
     const w = d.wind_speed_10m_max[i], g = d.wind_gusts_10m_max[i], dir = d.wind_direction_10m_dominant[i];
     return `<div class="day${S.hourDay===t?' on':''}" data-d="${t}">
       <div class="dn">${name}</div><div class="muted small">${date}</div>
-      <div class="ic">${icon}</div>
+      <div class="ic">${WI(d.weather_code[i], 1, 40)}</div>
       <div><span class="hi">${Math.round(d.temperature_2m_max[i])}°</span> <span class="muted">${Math.round(d.temperature_2m_min[i])}°</span></div>
       <div style="color:${p>=0.5?'var(--rain)':'var(--muted)'}">${p==null?'–':p.toFixed(1)+' mm'}${pp!=null?`<br><span class="gust">${pp}%</span>`:''}</div>
       <div>${arrowSvg(dir, windColour(w), 16)}<b style="color:${windColour(w)}">${fmtSpd(w)}</b></div>
@@ -542,7 +607,7 @@ function renderHourly(){
     html += `<tr class="${night?'night':''}">
       <td class="dot"><span style="background:${scoreColour(rideScore(i))}"></span></td>
       <td><b>${hhmm(t)}</b></td>
-      <td>${icon}</td>
+      <td>${WI(h.weather_code[i], h.is_day ? h.is_day[i] : 1, 26)}</td>
       <td>${h.temperature_2m[i]==null?'–':Math.round(h.temperature_2m[i])+'°'}<br><span class="gust">${h.apparent_temperature[i]==null?'':'feels '+Math.round(h.apparent_temperature[i])+'°'}</span></td>
       <td>${p>0?`<span class="rainbar" style="width:${Math.min(40, 4+p*12)}px"></span>${p.toFixed(1)}`:'<span class="muted">0</span>'}${pp!=null?`<br><span class="gust">${pp}%</span>`:''}</td>
       <td>${arrowSvg(dir, windColour(w))} <span class="wspd" style="color:${windColour(w)}">${fmtSpd(w)}</span> <span class="muted small">${dirName(dir)}</span><br><span class="gust">gusts ${fmtSpd(g)}</span></td>
@@ -695,7 +760,7 @@ async function pushSettings(){
 
 // ---------- map ----------
 const M = { map:null, groups:{}, grid:null, fcIdx:0, radarFrames:[], radarLayers:{}, radarIdx:0, radarHost:'', timers:{}, me:null, gridKey:'' };
-const LAYERS = store.get('layers', {radar:true, rain:false, cloud:false, temp:true, wind:true});
+const LAYERS = Object.assign({radar:true, rain:false, cloud:false, wx:true, temp:true, wind:true}, store.get('layers', {}));
 
 function tempColour(t){
   const stops = [[-5,'#7c3aed'],[0,'#3b82f6'],[5,'#06b6d4'],[10,'#22c55e'],[15,'#eab308'],[20,'#f97316'],[25,'#ef4444'],[30,'#be123c']];
@@ -707,14 +772,14 @@ function showMap(){
   if(typeof L==='undefined'){ $('mapStatus').innerHTML='<span class="err">map library failed to load</span>'; return; }
   if(!M.map){
     M.map = L.map('map', {zoomControl:true, attributionControl:true}).setView([S.loc.lat, S.loc.lon], 8);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, className:'darktiles',
+    M.base = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19, className:'maptiles ' + (store.get('mapStyle','light')),
       attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://www.rainviewer.com/">Rain Viewer</a> · <a href="https://open-meteo.com/">Open-Meteo</a>'
     }).addTo(M.map);
     M.map.createPane('fc');   M.map.getPane('fc').style.zIndex = 350;
     M.map.createPane('radar');M.map.getPane('radar').style.zIndex = 360;
     M.map.createPane('labels');M.map.getPane('labels').style.zIndex = 650;
-    ['cloud','rain','temp','wind'].forEach(k => M.groups[k] = L.layerGroup());
+    ['cloud','rain','wx','temp','wind'].forEach(k => M.groups[k] = L.layerGroup());
     M.groups.radar = L.layerGroup();
     Object.entries(M.groups).forEach(([k,g]) => { if(LAYERS[k]) g.addTo(M.map); });
     document.querySelectorAll('#layerBox input').forEach(cb => {
@@ -727,6 +792,12 @@ function showMap(){
       };
     });
     $('radarRow').style.display = LAYERS.radar ? '' : 'none';
+    const styleLbl = () => $('mapStyleBtn').textContent = store.get('mapStyle','light')==='light' ? '🌙 Dark map' : '☀️ Light map';
+    styleLbl();
+    $('mapStyleBtn').onclick = () => {
+      const st = store.get('mapStyle','light')==='light' ? 'dark' : 'light'; store.set('mapStyle', st);
+      const el = M.base.getContainer(); el.classList.remove('light','dark'); el.classList.add(st); styleLbl();
+    };
     M.map.on('moveend', () => { clearTimeout(M.timers.move); M.timers.move = setTimeout(loadGrid, 500); });
     $('fcSlider').oninput = e => { M.fcTouched = true; M.fcIdx = +e.target.value; drawGrid(); };
     $('radarSlider').oninput = e => showRadar(+e.target.value);
@@ -800,7 +871,7 @@ function showRadar(i){
 async function loadGrid(){
   if(!M.map) return;
   const b = M.map.getBounds(), size = M.map.getSize();
-  const nx = size.x < 500 ? 5 : 7, ny = Math.max(4, Math.min(9, Math.round(nx * size.y / size.x)));
+  const nx = Math.max(3, Math.min(8, Math.floor(size.x / 84))), ny = Math.max(3, Math.min(9, Math.floor(size.y / 88)));
   const n = b.getNorth(), so = b.getSouth(), w = b.getWest(), e = b.getEast();
   const dLat = (n-so)/ny, dLon = (e-w)/nx;
   const pts = [];
@@ -809,7 +880,7 @@ async function loadGrid(){
   if(key===M.gridKey) return;
   $('mapStatus').textContent = 'loading forecast…';
   const url = `${API}?latitude=${pts.map(p=>p.lat).join(',')}&longitude=${pts.map(p=>p.lon).join(',')}`
-    + `&hourly=temperature_2m,cloud_cover,precipitation,wind_speed_10m,wind_direction_10m&forecast_hours=24&timezone=auto&wind_speed_unit=mph`;
+    + `&hourly=temperature_2m,cloud_cover,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m&forecast_hours=24&timezone=auto&wind_speed_unit=mph`;
   try{
     let d = await getJSON(url);
     if(!Array.isArray(d)) d = [d];
@@ -827,22 +898,28 @@ async function loadGrid(){
   }catch(e){ $('mapStatus').innerHTML = `<span class="err">forecast grid failed (${e.message})</span>`; }
 }
 
+function windBadge(dir, mph){
+  const col = windColour(mph), rot = (dir+180)%360;
+  return `<div class="mk-w"><svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="${col}"/><g transform="rotate(${rot} 12 12)"><path d="M12 4.5 L16.5 13 L13 11.6 L13 19 L11 19 L11 11.6 L7.5 13 Z" fill="#fff"/></g></svg>${fmtSpd(mph)}</div>`;
+}
+
 function drawGrid(){
   if(!M.grid) return;
   const {pts, dLat, dLon, data} = M.grid, k = M.fcIdx;
-  ['cloud','rain','temp','wind'].forEach(g => M.groups[g].clearLayers());
+  ['cloud','rain','wx','temp','wind'].forEach(g => M.groups[g].clearLayers());
   const t = data[0].hourly.time[k];
   $('fcTime').textContent = t ? `${dayLabel(t).split(' ')[0].slice(0,3)} ${hhmm(t)}` : '–';
   pts.forEach((p, idx) => {
     const h = data[idx] && data[idx].hourly; if(!h) return;
     const cc = h.cloud_cover[k], pr = h.precipitation[k], te = h.temperature_2m[k], ws = h.wind_speed_10m[k], wd = h.wind_direction_10m[k];
+    const code = h.weather_code ? h.weather_code[k] : null, day = h.is_day ? h.is_day[k] : 1;
     const bounds = [[p.lat-dLat/2, p.lon-dLon/2],[p.lat+dLat/2, p.lon+dLon/2]];
-    if(cc!=null && cc>5) M.groups.cloud.addLayer(L.rectangle(bounds, {pane:'fc', stroke:false, fillColor:'#e5e7eb', fillOpacity:cc/100*.45, interactive:false}));
-    if(pr!=null && pr>=0.05) M.groups.rain.addLayer(L.rectangle(bounds, {pane:'fc', stroke:false, fillColor:pr<0.5?'#60a5fa':pr<2?'#2563eb':pr<5?'#7c3aed':'#db2777', fillOpacity:Math.min(.75, .3+pr*.12), interactive:false}));
-    if(te!=null) M.groups.temp.addLayer(L.marker([p.lat+dLat*0.2, p.lon], {pane:'labels', interactive:false,
-      icon:L.divIcon({className:'', iconSize:[40,16], iconAnchor:[20,8], html:`<div class="mpt"><span class="t" style="background:${tempColour(te)}">${Math.round(te)}°</span></div>`})}));
-    if(ws!=null && wd!=null) M.groups.wind.addLayer(L.marker([p.lat-dLat*0.12, p.lon], {pane:'labels', interactive:false,
-      icon:L.divIcon({className:'', iconSize:[40,34], iconAnchor:[20,17], html:`<div class="mpt">${arrowSvg(wd, windColour(ws), 20)}<span class="w">${fmtSpd(ws)}</span></div>`})}));
+    if(cc!=null && cc>5) M.groups.cloud.addLayer(L.rectangle(bounds, {pane:'fc', stroke:false, fillColor:'#cbd5e1', fillOpacity:cc/100*.4, interactive:false}));
+    if(pr!=null && pr>=0.05) M.groups.rain.addLayer(L.rectangle(bounds, {pane:'fc', stroke:false, fillColor:pr<0.5?'#60a5fa':pr<2?'#2563eb':pr<5?'#7c3aed':'#db2777', fillOpacity:Math.min(.6, .25+pr*.1), interactive:false}));
+    const mk = (lat, html, w, hgt) => L.marker([lat, p.lon], {pane:'labels', interactive:false, icon:L.divIcon({className:'', iconSize:[w,hgt], iconAnchor:[w/2,hgt/2], html:`<div class="mk">${html}</div>`})});
+    if(code!=null) M.groups.wx.addLayer(mk(p.lat+dLat*0.26, `<span class="mk-i">${WI(code, day, 30)}</span>`, 34, 30));
+    if(te!=null) M.groups.temp.addLayer(mk(p.lat+dLat*0.02, `<span class="mk-t"><i style="background:${tempColour(te)}"></i>${Math.round(te)}°</span>`, 48, 18));
+    if(ws!=null && wd!=null) M.groups.wind.addLayer(mk(p.lat-dLat*0.24, windBadge(wd, ws), 56, 22));
   });
 }
 
