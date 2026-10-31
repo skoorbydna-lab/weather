@@ -25,7 +25,14 @@ html.fs-s{font-size:13px} html.fs-l{font-size:17.5px} html.fs-xl{font-size:20px}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:1rem}
 .wrap{max-width:760px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
 header{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-.hbtns{display:flex;gap:4px;flex:0 0 auto}
+.clock{text-align:right;flex:0 0 auto;line-height:1.2}
+.cdate{font-size:.78rem;color:var(--muted);font-weight:600}
+.ctime{font-size:1.25rem;font-weight:800;font-variant-numeric:tabular-nums}
+.csun{font-size:.75rem;color:var(--muted);white-space:nowrap}
+.search .btn:not(.primary){padding:.35em .4em;min-width:2rem;flex:0 0 auto}
+.search .btn.primary{flex:0 0 auto;padding-left:.7em;padding-right:.7em}
+.search input{width:0;min-width:0;flex:1 1 auto}
+#mapLegend .lscale{padding:0 12px}
 .hbtns .btn{padding:.35em .3em;min-width:2rem;font-size:.9rem;border-radius:9px}
 header{flex-wrap:wrap}
 .brand .logo{width:2.3rem;height:2.3rem}
@@ -41,7 +48,7 @@ button,select,input{font:inherit;color:inherit}
 .btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:.45em .75em;cursor:pointer}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn.sm{padding:.25em .5em}
-.search{position:relative;flex:1 1 100%;display:flex;gap:6px}
+.search{position:relative;flex:1 1 100%;display:flex;gap:5px}
 .search input,.field{flex:1;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:.5em .75em;min-width:0}
 .results{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:10px;margin-top:4px;z-index:20;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .results button{display:block;width:100%;text-align:left;border:0;background:none;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
@@ -107,9 +114,13 @@ footer a{color:inherit}
 .fold.closed>.foldhead .chev{transform:rotate(-90deg)}
 .subhead{display:flex;align-items:center;gap:6px;width:100%;margin-top:12px;padding:8px 0 6px;border:0;border-top:1px solid var(--line);background:none;color:var(--muted);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;text-align:left}
 .subhead .chev{margin-left:0}
-#mapLegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:.75rem;color:var(--muted)}
-#mapLegend .lg{display:flex;align-items:center;gap:6px}
-#mapLegend .bar{width:110px;height:8px;border-radius:4px}
+#mapLegend{margin-top:8px;font-size:.72rem;color:var(--muted)}
+#mapLegend .lrow{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
+#mapLegend .lname{flex:0 0 4.6rem;font-weight:700;padding-top:0}
+#mapLegend .lscale{flex:1;padding:0 8px}
+#mapLegend .bar{height:9px;border-radius:5px}
+#mapLegend .ticks{position:relative;height:1.1em;margin-top:2px}
+#mapLegend .ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
 #map{height:62vh;min-height:360px;border-radius:12px;overflow:hidden;background:#0a1a3a}
 .leaflet-container{font:inherit}
 .leaflet-control-attribution{font-size:9px;background:rgba(10,26,58,.75)!important;color:#9fb3dc}
@@ -144,23 +155,29 @@ footer a{color:inherit}
         <div class="place"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" fill="currentColor"/></svg><span id="place">–</span></div>
       </div>
     </div>
-    <div class="hbtns">
-      <button class="btn" id="locBtn" title="Forecast for my location">📍</button>
-      <button class="btn" id="unitBtn" title="Switch wind units">mph</button>
-      <button class="btn" id="refreshBtn" title="Refresh">↻</button>
-      <button class="btn" id="fsBtn" title="Full screen">⛶</button>
-      <button class="btn" id="setBtn" title="Settings">⚙</button>
+    <div class="clock">
+      <div class="cdate" id="cDate">–</div>
+      <div class="ctime" id="cTime">–</div>
+      <div class="csun" id="cSun"></div>
     </div>
     <form class="search" id="searchForm">
       <input id="q" placeholder="Search a town…" autocomplete="off">
       <button class="btn primary" type="submit">Go</button>
       <div class="results" id="results" hidden></div>
+      <button class="btn" type="button" id="locBtn" title="Forecast for my location">📍</button>
+      <button class="btn" type="button" id="refreshBtn" title="Refresh">↻</button>
+      <button class="btn" type="button" id="fsBtn" title="Full screen">⛶</button>
+      <button class="btn" type="button" id="setBtn" title="Settings">⚙</button>
     </form>
   </header>
 
   <section class="card" id="settings" hidden>
     <h2><span>Settings</span><button class="btn sm" id="setClose">Done</button></h2>
     <label class="switch" style="margin-bottom:10px"><input type="checkbox" id="autoFs"> Go full screen automatically when I first tap the app</label>
+    <div class="row between" style="margin-bottom:10px">
+      <span>Wind speed units</span>
+      <span class="seg" id="unitSeg"><button data-u="mph">mph</button><button data-u="km/h">km/h</button></span>
+    </div>
     <div class="row between">
       <span>Text size</span>
       <span class="seg" id="fsSeg">
@@ -402,7 +419,7 @@ async function load(){
   const modelParam = S.model==='best_match' ? '' : `&models=${S.model}`;
   const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
     + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&forecast_days=14`
-    + `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant`;
+    + `&daily=sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant`;
   const cmpUrl = `${API}?${common}&models=${MODELS.map(m=>m.id).join(',')}&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=14`;
   try{
     const [main, cmp] = await Promise.all([getJSON(mainUrl), getJSON(cmpUrl).catch(e=>({error:e.message}))]);
@@ -417,7 +434,7 @@ async function load(){
   sendLocation();
 }
 
-function renderAll(){ renderNow(); renderDays(); renderRain(); renderHourly(); renderWindow(); renderCompare(); }
+function renderAll(){ renderClock(); renderNow(); renderDays(); renderRain(); renderHourly(); renderWindow(); renderCompare(); }
 
 function renderNow(){
   const c = S.main.current;
@@ -462,6 +479,20 @@ function renderRain(){
     sum.innerHTML = `<span style="color:var(--rain)">🌧️ Rain ${when} · ${total.toFixed(1)} mm</span>`;
   }else sum.innerHTML = `<span style="color:var(--good)">✅ Dry next hour</span>`;
 }
+
+// ---------- clock + sunrise/sunset ----------
+function renderClock(){
+  const now = new Date();
+  $('cDate').textContent = now.toLocaleDateString('en-GB',{weekday:'short', day:'numeric', month:'short'});
+  $('cTime').textContent = now.toLocaleTimeString('en-GB',{hour:'2-digit', minute:'2-digit'});
+  const d = S.main && S.main.daily;
+  if(d && d.sunrise && d.sunrise[0]){
+    const today = (S.main.current.time || '').slice(0,10), i = Math.max(0, d.time.indexOf(today));
+    $('cSun').innerHTML = `<span title="Sunrise">☀️↑ ${hhmm(d.sunrise[i])}</span> · <span title="Sunset">↓ ${hhmm(d.sunset[i])}</span>`;
+  }
+}
+setInterval(renderClock, 20000);
+renderClock();
 
 // ---------- 14-day outlook ----------
 function renderDays(){
@@ -914,12 +945,22 @@ function drawIcons(){
   }
 }
 
+function legendRow(label, stops, lo, hi, ticks, pos, fmt){
+  const P = v => (pos(v)-pos(lo))/(pos(hi)-pos(lo))*100;
+  const grad = `linear-gradient(90deg,${stops.filter(s=>s[0]>=lo&&s[0]<=hi).map(s=>`${rgb(s[1])} ${P(s[0]).toFixed(1)}%`).join(',')})`;
+  return `<div class="lrow"><span class="lname">${label}</span><div class="lscale"><div class="bar" style="background:${grad}"></div>`
+    + `<div class="ticks">${ticks.map(t=>`<span style="left:${P(t).toFixed(1)}%">${fmt(t)}</span>`).join('')}</div></div></div>`;
+}
 function updateLegend(){
-  const parts = [];
-  if(LAYERS.temp) parts.push(`<span class="lg">🌡️ <span>-5°</span><span class="bar" style="background:${gradCss(TEMP_STOPS,-5,32)}"></span><span>30°</span></span>`);
-  if(LAYERS.wind){ const top = S.unit==='mph' ? '35 mph' : '56 km/h'; parts.push(`<span class="lg">🌬️ <span>0</span><span class="bar" style="background:${gradCss(WIND_STOPS,0,35)}"></span><span>${top}</span></span>`); }
-  if(LAYERS.rain) parts.push(`<span class="lg">🌧️ <span>light</span><span class="bar" style="background:${gradCss(RAIN_STOPS,0.05,8)}"></span><span>heavy</span></span>`);
-  $('mapLegend').innerHTML = parts.join('');
+  const rows = [], lin = v => v;
+  if(LAYERS.temp) rows.push(legendRow('🌡️ °C', TEMP_STOPS, -5, 30, [-5,0,5,10,15,20,25,30], lin, v=>v));
+  if(LAYERS.wind){
+    const km = S.unit!=='mph', ticks = [0,5,10,15,20,25,30,35];
+    rows.push(legendRow(`🌬️ ${S.unit}`, WIND_STOPS, 0, 35, ticks, lin, v => km ? Math.round(v*1.609) : v));
+  }
+  if(LAYERS.rain) rows.push(legendRow('🌧️ mm/h', RAIN_STOPS, 0.05, 8, [0.1,0.25,0.5,1,2,4,8], v=>Math.log(v), v=>v));
+  if(LAYERS.cloud) rows.push(`<div class="lrow"><span class="lname">☁️ cloud</span><div class="lscale"><div class="bar" style="background:linear-gradient(90deg,rgba(238,242,248,0),rgba(238,242,248,.85))"></div><div class="ticks"><span style="left:0">10%</span><span style="left:50%">55%</span><span style="left:100%">100%</span></div></div></div>`);
+  $('mapLegend').innerHTML = rows.join('');
 }
 
 // redraw everything that depends on the forecast hour
@@ -1098,8 +1139,9 @@ applyFs();
 $('setBtn').onclick = () => { $('settings').hidden = !$('settings').hidden; if(!$('settings').hidden) refreshSrv(); };
 $('setClose').onclick = () => { $('settings').hidden = true; };
 
-$('unitBtn').textContent = S.unit;
-$('unitBtn').onclick = () => { S.unit = S.unit==='mph' ? 'km/h' : 'mph'; store.set('unit', S.unit); $('unitBtn').textContent = S.unit; if(S.main) renderAll(); drawGrid(); };
+function unitSeg(){ document.querySelectorAll('#unitSeg button').forEach(b=>b.classList.toggle('on', b.dataset.u===S.unit)); }
+document.querySelectorAll('#unitSeg button').forEach(b => b.onclick = () => { S.unit = b.dataset.u; store.set('unit', S.unit); unitSeg(); if(S.main) renderAll(); drawGrid(); });
+unitSeg();
 $('refreshBtn').onclick = () => { load(); refreshSrv(); };
 
 $('modelSel').innerHTML = `<option value="best_match">Best match</option>` + MODELS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
