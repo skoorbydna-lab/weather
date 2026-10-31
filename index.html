@@ -80,13 +80,18 @@ button,select,input{font:inherit;color:inherit}
 .seg button.on{background:var(--accent);color:#fff}
 .hours{width:100%;border-collapse:collapse}
 .hours th{font-size:.72rem;color:var(--muted);font-weight:600;text-align:left;padding:4px 4px 6px;border-bottom:1px solid var(--line)}
-.hours td{padding:7px 4px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
+.hours td{padding:6px 3px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
 .hours tr.day td{background:var(--bg);font-weight:700;font-size:.8rem;padding:6px}
 .hours tr.night td:not(.dot){opacity:.62}
 .arrow{display:inline-block;vertical-align:middle}
 .wspd{font-weight:700}
 .gust{font-size:.78rem;color:var(--muted)}
-.dot{width:14px}
+.dot{width:12px}
+#hourTable .hr{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
+#hourTable .ic{padding:2px 0}
+#hourTable .x{font-size:.82rem;color:var(--muted);text-align:center}
+#hourTable th{text-align:center}
+#hourTable .wc{white-space:nowrap}
 .dot span{display:inline-block;width:10px;height:10px;border-radius:50%}
 .rainbar{display:inline-block;height:8px;background:var(--rain);border-radius:3px;vertical-align:middle;margin-right:4px}
 .cmp td,.cmp th{text-align:center}
@@ -261,7 +266,7 @@ footer a{color:inherit}
     </h2>
     <div class="foldbody">
     <div class="scroll"><table class="hours" id="hourTable"></table></div>
-    <div class="muted small" style="margin-top:8px">Arrows point the way the wind is blowing <b>to</b>; letters show where it comes <b>from</b>. Dot = ride rating (rain, wind, gusts, cold, daylight).</div>
+    <div class="muted small" style="margin-top:8px">Temp (feels like) · rain mm (chance) · wind speed, direction it comes <b>from</b> (gusts) – arrows point where it blows <b>to</b> · Hum = humidity · Cld = cloud cover · UV index · dot = ride rating.</div>
     </div>
   </section>
 
@@ -432,7 +437,7 @@ async function load(force){
   $('place').textContent = S.loc.name;
   $('updated').textContent = 'loading…';
   const common = `latitude=${lat}&longitude=${lon}&timezone=auto&wind_speed_unit=mph`;
-  const hourlyVars = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day';
+  const hourlyVars = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day,relative_humidity_2m,cloud_cover,uv_index';
   const modelParam = S.model==='best_match' ? '' : `&models=${S.model}`;
   const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
     + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&forecast_days=14`
@@ -592,22 +597,28 @@ function renderHourly(){
   if(S.hourDay){ const a = h.time.findIndex(t=>t.startsWith(S.hourDay)); if(a>=0){ start = a; end = Math.min(h.time.length, a+24); } }
   $('hourTitle').textContent = S.hourDay ? 'Hourly – ' + dayLabel(S.hourDay+'T12:00') : 'Hourly forecast – next 48 h';
   const hasProb = h.precipitation_probability && h.precipitation_probability.some(v=>v!=null);
-  let html = `<tr><th></th><th>Time</th><th></th><th>Temp</th><th>Rain</th><th>Wind (${S.unit})</th></tr>`;
+  const uvCol = u => u==null ? 'var(--muted)' : u<3 ? 'var(--good)' : u<6 ? '#eab308' : u<8 ? '#f97316' : '#ef4444';
+  const val = (arr, k) => arr ? arr[k] : null;
+  let html = `<tr><th></th><th></th><th></th><th>°C</th><th>Rain</th><th>Wind</th><th title="Humidity">Hum</th><th title="Cloud cover">Cld</th><th title="UV index">UV</th></tr>`;
   let lastDay = '';
   for(let i=start;i<end;i++){
     const t = h.time[i], d = t.slice(0,10);
-    if(d!==lastDay){ html += `<tr class="day"><td colspan="6">${dayLabel(t)}</td></tr>`; lastDay = d; }
-    const [icon] = wx(h.weather_code[i]);
+    if(d!==lastDay){ html += `<tr class="day"><td colspan="9">${dayLabel(t)}</td></tr>`; lastDay = d; }
     const p = h.precipitation[i], pp = hasProb ? h.precipitation_probability[i] : null;
     const w = h.wind_speed_10m[i], dir = h.wind_direction_10m[i], g = h.wind_gusts_10m[i];
+    const te = h.temperature_2m[i], fe = h.apparent_temperature[i];
+    const hum = val(h.relative_humidity_2m, i), cc = val(h.cloud_cover, i), uv = val(h.uv_index, i);
     const night = h.is_day && h.is_day[i]===0;
     html += `<tr class="${night?'night':''}">
       <td class="dot"><span style="background:${scoreColour(rideScore(i))}"></span></td>
-      <td><b>${hhmm(t)}</b></td>
-      <td>${WI(h.weather_code[i], h.is_day ? h.is_day[i] : 1, 26)}</td>
-      <td>${h.temperature_2m[i]==null?'–':Math.round(h.temperature_2m[i])+'°'}<br><span class="gust">${h.apparent_temperature[i]==null?'':'feels '+Math.round(h.apparent_temperature[i])+'°'}</span></td>
-      <td>${p>0?`<span class="rainbar" style="width:${Math.min(40, 4+p*12)}px"></span>${p.toFixed(1)}`:'<span class="muted">0</span>'}${pp!=null?`<br><span class="gust">${pp}%</span>`:''}</td>
-      <td>${arrowSvg(dir, windColour(w))} <span class="wspd" style="color:${windColour(w)}">${fmtSpd(w)}</span> <span class="muted small">${dirName(dir)}</span><br><span class="gust">gusts ${fmtSpd(g)}</span></td>
+      <td class="hr">${t.slice(11,13)}</td>
+      <td class="ic">${WI(h.weather_code[i], h.is_day ? h.is_day[i] : 1, 24)}</td>
+      <td><b>${te==null?'–':Math.round(te)+'°'}</b>${fe==null?'':`<br><span class="gust">(${Math.round(fe)}°)</span>`}</td>
+      <td>${p>0?`<b style="color:var(--rain)">${p.toFixed(1)}</b>`:'<span class="muted">0</span>'}${pp!=null?`<br><span class="gust">(${pp}%)</span>`:''}</td>
+      <td class="wc">${arrowSvg(dir, windColour(w), 18)}<b style="color:${windColour(w)}">${fmtSpd(w)}</b> <span class="gust">${dirName(dir)}</span><br><span class="gust">(${fmtSpd(g)})</span></td>
+      <td class="x">${hum==null?'–':Math.round(hum)+'%'}</td>
+      <td class="x">${cc==null?'–':Math.round(cc)+'%'}</td>
+      <td class="x"><b style="color:${uvCol(uv)}">${uv==null?'–':Math.round(uv)}</b></td>
     </tr>`;
   }
   $('hourTable').innerHTML = html;
