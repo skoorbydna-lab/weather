@@ -15,6 +15,7 @@
 const CONFIG = {
   KEY: '',          // your secret key
   NTFY_TOPIC: '',   // your ntfy topic
+  NTFY_TOKEN: '',   // optional: ntfy access token (tk_...) from a free ntfy.sh account
   APP_URL: 'https://skoorbydna-lab.github.io/ride-weather/',
 };
 // ---------------------------------------------------------------------------------
@@ -56,6 +57,7 @@ function inQuiet(h, start, end) {
 async function notify(env, title, body, tags = 'cloud_with_rain', priority = 'high') {
   const headers = { Title: title, Tags: tags, Priority: priority };
   if (env.APP_URL) headers.Click = env.APP_URL;
+  if (env.NTFY_TOKEN) headers.Authorization = 'Bearer ' + env.NTFY_TOKEN;
   if (!env.NTFY_TOPIC) return { ok: false, error: 'NTFY_TOPIC is not set' };
   try {
     const r = await fetch(`https://ntfy.sh/${encodeURIComponent(env.NTFY_TOPIC)}`, { method: 'POST', body, headers });
