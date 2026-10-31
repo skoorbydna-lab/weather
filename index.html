@@ -106,6 +106,8 @@ footer a{color:inherit}
 .err{color:var(--bad)} .okc{color:var(--good)}
 .scroll{overflow-x:auto}
 .stack>*+*{margin-top:8px}
+.notice{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 12px;margin-bottom:12px;font-size:.82rem;color:var(--muted)}
+.notice b{color:var(--ink)}
 .foldhead{cursor:pointer;user-select:none;-webkit-user-select:none}
 .card.fold>h2.foldhead{margin-bottom:10px}
 .fold.closed>.foldbody{display:none}
@@ -166,7 +168,7 @@ footer a{color:inherit}
       <div class="results" id="results" hidden></div>
       <button class="btn" type="button" id="locBtn" title="Forecast for my location">📍</button>
       <button class="btn" type="button" id="refreshBtn" title="Refresh">↻</button>
-      <button class="btn" type="button" id="fsBtn" title="Full screen">⛶</button>
+      <button class="btn" type="button" id="fsBtn" title="Full screen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
       <button class="btn" type="button" id="setBtn" title="Settings">⚙</button>
     </form>
   </header>
@@ -209,6 +211,8 @@ footer a{color:inherit}
       <div id="srvStatus" class="muted"></div>
     </div>
   </section>
+
+  <div class="notice" id="notice" hidden></div>
 
   <section class="card">
     <h2><span>Now</span><span class="small" id="updated"></span></h2>
@@ -409,7 +413,19 @@ async function getJSON(url, opts){
 }
 
 // ---------- forecast ----------
-async function load(){
+// small cache so repeated opens/refreshes don't use up the weather service's per-minute limit
+const MEM = new Map();
+function cacheGet(url){ if(MEM.has(url)) return MEM.get(url); try{ const v = JSON.parse(localStorage.getItem('rwc_'+url.length+'_'+url.slice(-80))||'null'); if(v && v.url===url){ MEM.set(url, v); return v; } }catch(e){} return null; }
+function cachePut(url, data){ const v = {url, at:Date.now(), data}; MEM.set(url, v); try{ localStorage.setItem('rwc_'+url.length+'_'+url.slice(-80), JSON.stringify(v)); }catch(e){ try{ Object.keys(localStorage).filter(k=>k.startsWith('rwc_')).forEach(k=>localStorage.removeItem(k)); }catch(_){} } return v; }
+async function cachedJSON(url, maxAge){
+  const c = cacheGet(url);
+  if(c && maxAge && Date.now()-c.at < maxAge) return c;
+  return cachePut(url, await getJSON(url));
+}
+
+async function load(force){
+  if(!force && S.loading) return;
+  S.loading = true; setTimeout(()=>S.loading=false, 4000);
   S.loadedAt = Date.now();
   const {lat, lon} = S.loc;
   $('place').textContent = S.loc.name;
@@ -421,13 +437,26 @@ async function load(){
     + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&forecast_days=14`
     + `&daily=sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant`;
   const cmpUrl = `${API}?${common}&models=${MODELS.map(m=>m.id).join(',')}&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=14`;
+  const notice = $('notice'); notice.hidden = true;
+  clearTimeout(S.retry);
   try{
-    const [main, cmp] = await Promise.all([getJSON(mainUrl), getJSON(cmpUrl).catch(e=>({error:e.message}))]);
-    S.main = main; S.cmp = cmp; OFFSET = main.utc_offset_seconds || 0;
+    const [main, cmp] = await Promise.all([
+      cachedJSON(mainUrl, force ? 0 : 10*60000),
+      cachedJSON(cmpUrl, force ? 5*60000 : 30*60000).catch(e=>({error:e.message}))
+    ]);
+    S.main = main.data; S.cmp = cmp.error ? cmp : cmp.data; OFFSET = S.main.utc_offset_seconds || 0;
     renderAll();
-    $('updated').textContent = 'updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    $('updated').textContent = 'updated ' + new Date(main.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
-    $('updated').innerHTML = `<span class="err">couldn't load (${e.message})</span>`;
+    const busy = /limit/i.test(e.message);
+    const old = cacheGet(mainUrl);
+    if(old && !S.main){ S.main = old.data; const oc = cacheGet(cmpUrl); S.cmp = oc ? oc.data : {error:'offline'}; OFFSET = S.main.utc_offset_seconds || 0; renderAll(); }
+    if(S.main) $('updated').textContent = 'from ' + new Date((old||{at:Date.now()}).at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    notice.hidden = false;
+    notice.innerHTML = busy
+      ? `<b>Weather service busy</b> – too many requests in the last minute. ${S.main ? 'Showing the last forecast and trying' : 'Trying'} again automatically in a minute.`
+      : `<b>Couldn't load the forecast</b> (${e.message}). ${S.main ? 'Showing the last forecast. ' : ''}Check your connection, then tap ↻.`;
+    S.retry = setTimeout(() => load(true), busy ? 65000 : 120000);
   }
   clearTimeout(S.timer);
   S.timer = setTimeout(load, 15*60*1000);
@@ -1009,7 +1038,7 @@ function showMap(){
       const st = store.get('mapStyle','light')==='light' ? 'dark' : 'light'; store.set('mapStyle', st);
       const el = M.base.getContainer(); el.classList.remove('light','dark'); el.classList.add(st); styleLbl();
     };
-    M.map.on('moveend', () => { clearTimeout(M.timers.move); M.timers.move = setTimeout(loadGrid, 400); });
+    M.map.on('moveend', () => { clearTimeout(M.timers.move); M.timers.move = setTimeout(loadGrid, 900); });
     $('fcSlider').oninput = e => { M.fcTouched = true; M.fcIdx = +e.target.value; drawGrid(); };
     $('radarSlider').oninput = e => showRadar(+e.target.value);
     $('fcPlay').onclick = () => togglePlay('fc');
@@ -1078,7 +1107,7 @@ async function loadGrid(){
   const view = M.map.getBounds(), z = M.map.getZoom();
   if(M.grid && M.grid.zoom===z && M.grid.bounds.contains(view)) return;   // still covered
   const b = view.pad(0.2), size = M.map.getSize();
-  const nx = Math.max(6, Math.min(11, Math.round(size.x/36))), ny = Math.max(6, Math.min(14, Math.round(size.y/36)));
+  const nx = Math.max(5, Math.min(8, Math.round(size.x/48))), ny = Math.max(5, Math.min(10, Math.round(size.y/48)));
   const n = b.getNorth(), so = b.getSouth(), w = b.getWest(), e = b.getEast(), dLat = (n-so)/ny, dLon = (e-w)/nx;
   const pts = [];
   for(let j=0;j<ny;j++) for(let i=0;i<nx;i++) pts.push({lat:+(so+dLat*(j+.5)).toFixed(3), lon:+(w+dLon*(i+.5)).toFixed(3)});
@@ -1095,7 +1124,7 @@ async function loadGrid(){
     if(M.fcIdx > times.length-1) M.fcIdx = 0;
     $('mapStatus').textContent = '';
     drawGrid();
-  }catch(e){ $('mapStatus').innerHTML = `<span class="err">forecast failed (${e.message})</span>`; }
+  }catch(e){ $('mapStatus').innerHTML = /limit/i.test(e.message) ? '<span class="err">busy – retrying</span>' : '<span class="err">forecast failed</span>'; clearTimeout(M.timers.retry); M.timers.retry = setTimeout(loadGrid, 65000); }
 }
 
 // ---------- location & search ----------
@@ -1142,7 +1171,7 @@ $('setClose').onclick = () => { $('settings').hidden = true; };
 function unitSeg(){ document.querySelectorAll('#unitSeg button').forEach(b=>b.classList.toggle('on', b.dataset.u===S.unit)); }
 document.querySelectorAll('#unitSeg button').forEach(b => b.onclick = () => { S.unit = b.dataset.u; store.set('unit', S.unit); unitSeg(); if(S.main) renderAll(); drawGrid(); });
 unitSeg();
-$('refreshBtn').onclick = () => { load(); refreshSrv(); };
+$('refreshBtn').onclick = () => { load(true); refreshSrv(); };
 
 $('modelSel').innerHTML = `<option value="best_match">Best match</option>` + MODELS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
 $('modelSel').value = S.model;
@@ -1208,7 +1237,7 @@ const standalone = () => matchMedia('(display-mode: fullscreen), (display-mode: 
 async function goFs(){
   try{ if(fsEl.requestFullscreen) await fsEl.requestFullscreen({navigationUI:'hide'}); else if(fsEl.webkitRequestFullscreen) fsEl.webkitRequestFullscreen(); }catch(e){}
 }
-function fsLabel(){ $('fsBtn').textContent = inFs() ? '🗗' : '⛶'; $('fsBtn').title = inFs() ? 'Exit full screen' : 'Full screen'; }
+function fsLabel(){ $('fsBtn').innerHTML = inFs() ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>` : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>`; $('fsBtn').title = inFs() ? 'Exit full screen' : 'Full screen'; }
 $('fsBtn').onclick = async () => { if(inFs()){ try{ await document.exitFullscreen(); }catch(e){} } else await goFs(); fsLabel(); };
 document.addEventListener('fullscreenchange', fsLabel);
 if(standalone()) $('fsBtn').style.display = 'none';      // already running as an installed app
