@@ -11,26 +11,28 @@
   --accent:#4f8cff;--good:#22c55e;--ok:#f59e0b;--bad:#f43f5e;--rain:#5eb3ff;
   color-scheme:dark;
 }
+html{font-size:15px}
+html.fs-s{font-size:13px} html.fs-l{font-size:17.5px} html.fs-xl{font-size:20px}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:1rem}
 .wrap{max-width:760px;margin:0 auto;padding:12px 12px 40px}
 header{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 h1{font-size:1.15rem;margin:0;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 button,select,input{font:inherit;color:inherit}
-.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 11px;cursor:pointer}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:.45em .75em;cursor:pointer}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn:disabled{opacity:.5}
+.btn.sm{padding:.25em .5em}
 .search{position:relative;flex:1 1 100%;display:flex;gap:6px}
-.search input{flex:1;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 11px}
-.results{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:10px;margin-top:4px;z-index:20;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+.search input,.field{flex:1;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:.5em .75em;min-width:0}
+.results{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:10px;margin-top:4px;z-index:20;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .results button{display:block;width:100%;text-align:left;border:0;background:none;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
-.results button:hover{background:var(--bg)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
 .card h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
 .muted{color:var(--muted)}
 .small{font-size:.82rem}
 .now{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
-.compass{width:110px;height:110px}
+.compass{width:7rem;height:7rem}
 .bigtemp{font-size:2.4rem;font-weight:700;line-height:1}
 .windline{font-size:1.25rem;font-weight:600;margin-top:6px}
 .banner{border-radius:12px;padding:10px 12px;margin-bottom:12px;font-weight:600;display:none}
@@ -39,15 +41,15 @@ button,select,input{font:inherit;color:inherit}
 .tabs{display:flex;gap:6px;margin-bottom:12px}
 .tabs button{flex:1}
 .tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-.chips{display:flex;gap:6px;flex-wrap:wrap}
-.chip{border:1px solid var(--line);border-radius:999px;padding:4px 10px;background:var(--card);cursor:pointer;font-size:.85rem}
-.chip.on{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:none;padding:.4em .8em;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff}
 .hours{width:100%;border-collapse:collapse}
 .hours th{font-size:.72rem;color:var(--muted);font-weight:600;text-align:left;padding:4px 4px 6px;border-bottom:1px solid var(--line)}
 .hours td{padding:7px 4px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}
 .hours tr.day td{background:var(--bg);font-weight:700;font-size:.8rem;padding:6px}
 .hours tr.night td:not(.dot){opacity:.62}
-.arrow{display:inline-block;width:22px;height:22px;vertical-align:middle}
+.arrow{display:inline-block;vertical-align:middle}
 .wspd{font-weight:700}
 .gust{font-size:.78rem;color:var(--muted)}
 .dot{width:14px}
@@ -55,31 +57,70 @@ button,select,input{font:inherit;color:inherit}
 .rainbar{display:inline-block;height:8px;background:var(--rain);border-radius:3px;vertical-align:middle;margin-right:4px}
 .cmp td,.cmp th{text-align:center}
 .cmp td:first-child,.cmp th:first-child{text-align:left}
-.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem;margin-top:6px}
+.cmp td{line-height:1.25;font-size:.85rem}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.8rem;margin:4px 0 6px}
 .legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
 .switch{display:flex;align-items:center;gap:8px;cursor:pointer}
 .switch input{width:18px;height:18px}
 .window{font-size:1.05rem;font-weight:700}
+.chartlbl{font-size:.75rem;font-weight:700;color:var(--muted);margin:10px 0 2px}
 footer{font-size:.75rem;color:var(--muted);text-align:center;margin-top:16px}
 footer a{color:inherit}
-.err{color:var(--bad)}
+.err{color:var(--bad)} .okc{color:var(--good)}
 .scroll{overflow-x:auto}
+.stack>*+*{margin-top:8px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1 id="place">Ride Weather</h1>
-    <button class="btn" id="locBtn" title="Use my location">📍</button>
+    <button class="btn" id="locBtn" title="Forecast for my location">📍</button>
     <button class="btn" id="unitBtn" title="Switch wind units">mph</button>
     <button class="btn" id="refreshBtn" title="Refresh">↻</button>
+    <button class="btn" id="setBtn" title="Settings">⚙</button>
     <form class="search" id="searchForm">
-      <input id="q" placeholder="Search a town or postcode area…" autocomplete="off">
+      <input id="q" placeholder="Search a town…" autocomplete="off">
       <button class="btn primary" type="submit">Go</button>
       <div class="results" id="results" hidden></div>
     </form>
   </header>
+
+  <section class="card" id="settings" hidden>
+    <h2><span>Settings</span><button class="btn sm" id="setClose">Done</button></h2>
+    <div class="row between">
+      <span>Text size</span>
+      <span class="seg" id="fsSeg">
+        <button data-fs="s">S</button><button data-fs="m">M</button><button data-fs="l">L</button><button data-fs="xl">XL</button>
+      </span>
+    </div>
+
+    <h3>Phone rain alerts (ntfy)</h3>
+    <div class="stack small">
+      <input class="field" id="srvUrl" placeholder="Alert server URL, e.g. https://ride-rain.yourname.workers.dev" style="width:100%">
+      <input class="field" id="srvKey" placeholder="Secret key" style="width:100%" type="password">
+      <div class="row">
+        <button class="btn primary sm" id="srvSave">Save &amp; connect</button>
+        <button class="btn sm" id="srvTest">Send test alert</button>
+        <button class="btn sm" id="srvCheck">Check rain now</button>
+      </div>
+      <label class="switch"><input type="checkbox" id="srvOn"> Rain alerts on</label>
+      <label class="switch"><input type="checkbox" id="shareLoc"> Send my location whenever this app is open</label>
+      <div class="row">Alert if ≥
+        <select id="alertThresh" class="btn sm">
+          <option value="0.1">any rain (0.1 mm)</option>
+          <option value="0.3">light (0.3 mm)</option>
+          <option value="1">moderate (1 mm)</option>
+        </select> in 15 min
+      </div>
+      <div class="row">Quiet from
+        <select id="qStart" class="btn sm"></select> to <select id="qEnd" class="btn sm"></select>
+      </div>
+      <div id="srvStatus" class="muted"></div>
+    </div>
+  </section>
 
   <div class="banner" id="rainBanner"></div>
 
@@ -97,27 +138,17 @@ footer a{color:inherit}
   </section>
 
   <section class="card">
-    <h2><span>Rain – next hour</span><span class="small" id="rainSummary"></span></h2>
-    <svg id="rainChart" viewBox="0 0 360 150" width="100%"></svg>
-    <div class="row small" style="margin-top:10px;justify-content:space-between">
-      <label class="switch"><input type="checkbox" id="alertToggle"> Rain alerts</label>
-      <label class="row">Alert if ≥
-        <select id="alertThresh" class="btn" style="padding:4px 6px">
-          <option value="0.1">any rain (0.1 mm)</option>
-          <option value="0.3">light (0.3 mm)</option>
-          <option value="1">moderate (1 mm)</option>
-        </select> in 15 min
-      </label>
-    </div>
-    <div class="muted small" id="alertNote" style="margin-top:6px"></div>
+    <h2><span>Rain – next 2 hours</span><span class="small" id="rainSummary"></span></h2>
+    <svg id="rainChart" viewBox="0 0 360 96" width="100%"></svg>
+    <div class="muted small" id="alertLine" style="margin-top:6px"></div>
   </section>
 
   <section class="card">
     <h2><span>Best ride window today</span></h2>
-    <div class="row" style="justify-content:space-between">
+    <div class="row between">
       <div class="window" id="rideWindow">–</div>
       <label class="row small">Ride length
-        <select id="rideLen" class="btn" style="padding:4px 6px">
+        <select id="rideLen" class="btn sm">
           <option value="1">1 h</option><option value="2" selected>2 h</option>
           <option value="3">3 h</option><option value="4">4 h</option>
         </select>
@@ -133,24 +164,20 @@ footer a{color:inherit}
 
   <section class="card" id="tab-hourly">
     <h2><span>Hourly forecast</span>
-      <select id="modelSel" class="btn" style="padding:4px 6px;text-transform:none;letter-spacing:0"></select>
+      <select id="modelSel" class="btn sm" style="text-transform:none;letter-spacing:0"></select>
     </h2>
     <div class="scroll"><table class="hours" id="hourTable"></table></div>
-    <div class="muted small" style="margin-top:8px">Arrows point the way the wind is blowing <b>to</b>. Letters show where it comes <b>from</b>. Dot = ride rating (rain, wind, gusts, cold, daylight).</div>
+    <div class="muted small" style="margin-top:8px">Arrows point the way the wind is blowing <b>to</b>; letters show where it comes <b>from</b>. Dot = ride rating (rain, wind, gusts, cold, daylight).</div>
   </section>
 
   <section class="card" id="tab-compare" hidden>
-    <h2><span>Models side by side</span>
-      <span class="chips" id="metricChips">
-        <button class="chip on" data-m="wind">Wind</button>
-        <button class="chip" data-m="gust">Gusts</button>
-        <button class="chip" data-m="rain">Rain</button>
-        <button class="chip" data-m="temp">Temp</button>
-      </span>
-    </h2>
-    <svg id="cmpChart" viewBox="0 0 360 190" width="100%"></svg>
+    <h2><span>Models side by side · 48 h</span></h2>
     <div class="legend" id="cmpLegend"></div>
-    <div class="scroll" style="margin-top:12px"><table class="hours cmp" id="cmpTable"></table></div>
+    <div class="chartlbl" id="lblWind">Wind</div><svg id="cmpWind" viewBox="0 0 360 140" width="100%"></svg>
+    <div class="chartlbl">Rain (mm per hour)</div><svg id="cmpRain" viewBox="0 0 360 110" width="100%"></svg>
+    <div class="chartlbl">Temperature (°C)</div><svg id="cmpTemp" viewBox="0 0 360 120" width="100%"></svg>
+    <div class="chartlbl" style="margin-top:14px">Next 24 hours – wind · rain · temp</div>
+    <div class="scroll"><table class="hours cmp" id="cmpTable"></table></div>
   </section>
 
   <footer>
@@ -160,11 +187,11 @@ footer a{color:inherit}
 
 <script>
 const MODELS = [
-  {id:'ukmo_seamless',        name:'Met Office',   color:'#e4572e'},
-  {id:'ecmwf_ifs025',         name:'ECMWF',        color:'#2e86de'},
-  {id:'icon_seamless',        name:'DWD ICON',     color:'#17a589'},
-  {id:'gfs_seamless',         name:'NOAA GFS',     color:'#8e44ad'},
-  {id:'meteofrance_seamless', name:'Météo-France', color:'#d4ac0d'}
+  {id:'ukmo_seamless',        name:'Met Office',   color:'#ff7a59'},
+  {id:'ecmwf_ifs025',         name:'ECMWF',        color:'#5eb3ff'},
+  {id:'icon_seamless',        name:'DWD ICON',     color:'#34d399'},
+  {id:'gfs_seamless',         name:'NOAA GFS',     color:'#c084fc'},
+  {id:'meteofrance_seamless', name:'Météo-France', color:'#facc15'}
 ];
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
@@ -178,12 +205,11 @@ const S = {
   loc: store.get('loc', {name:'London', lat:51.5074, lon:-0.1278}),
   unit: store.get('unit', 'mph'),
   model: store.get('model', 'best_match'),
-  metric: 'wind',
-  alerts: store.get('alerts', false),
-  thresh: store.get('thresh', 0.1),
   rideLen: store.get('rideLen', 2),
-  lastAlert: store.get('lastAlert', 0),
-  main: null, cmp: null, timer: null
+  fs: store.get('fs', 'm'),
+  srv: store.get('srv', {url:'', key:''}),
+  share: store.get('share', true),
+  srvState: null, main: null, cmp: null, timer: null, loadedAt: 0
 };
 
 const $ = id => document.getElementById(id);
@@ -191,7 +217,7 @@ const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW',
 const dirName = d => d==null ? '' : COMPASS[Math.round(((d%360)/22.5))%16];
 const spd = mph => mph==null ? null : (S.unit==='mph' ? mph : mph*1.609344);
 const fmtSpd = mph => mph==null ? '–' : Math.round(spd(mph));
-const windColour = mph => mph==null ? 'var(--muted)' : mph<8 ? '#16a34a' : mph<15 ? '#ca8a04' : mph<22 ? '#ea580c' : '#dc2626';
+const windColour = mph => mph==null ? 'var(--muted)' : mph<8 ? '#22c55e' : mph<15 ? '#eab308' : mph<22 ? '#f97316' : '#f43f5e';
 
 const WX = {0:['☀️','Clear'],1:['🌤️','Mostly clear'],2:['⛅','Partly cloudy'],3:['☁️','Overcast'],45:['🌫️','Fog'],48:['🌫️','Freezing fog'],
   51:['🌦️','Light drizzle'],53:['🌦️','Drizzle'],55:['🌧️','Heavy drizzle'],56:['🌧️','Freezing drizzle'],57:['🌧️','Freezing drizzle'],
@@ -200,25 +226,25 @@ const WX = {0:['☀️','Clear'],1:['🌤️','Mostly clear'],2:['⛅','Partly c
   82:['⛈️','Violent showers'],85:['🌨️','Snow showers'],86:['🌨️','Heavy snow showers'],95:['⛈️','Thunderstorm'],96:['⛈️','Thunder + hail'],99:['⛈️','Thunder + hail']};
 const wx = c => WX[c] || ['',''];
 
-// local ISO time string (from API, already in location's timezone) -> epoch ms
 let OFFSET = 0;
 const toMs = t => Date.parse(t + ':00Z') - OFFSET*1000;
 const hhmm = t => t.slice(11,16);
 const dayLabel = t => new Date(t.slice(0,10)+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short',timeZone:'UTC'});
+const ago = ms => { const m = Math.round((Date.now()-ms)/60000); return m<1?'just now':m<90?m+' min ago':Math.round(m/60)+' h ago'; };
 
 function arrowSvg(dir, colour, size=22){
   if(dir==null) return '';
-  const rot = (dir + 180) % 360; // point downwind
-  return `<svg class="arrow" style="width:${size}px;height:${size}px" viewBox="0 0 24 24"><g transform="rotate(${rot} 12 12)"><path d="M12 2 L18 14 L13.2 12 L13.2 22 L10.8 22 L10.8 12 L6 14 Z" fill="${colour}"/></g></svg>`;
+  const rot = (dir + 180) % 360;
+  return `<svg class="arrow" style="width:${size/15}rem;height:${size/15}rem" viewBox="0 0 24 24"><g transform="rotate(${rot} 12 12)"><path d="M12 2 L18 14 L13.2 12 L13.2 22 L10.8 22 L10.8 12 L6 14 Z" fill="${colour}"/></g></svg>`;
 }
 
-// ---------- fetching ----------
-async function getJSON(url){
-  const r = await fetch(url);
-  if(!r.ok){ let m = r.status; try{ m = (await r.json()).reason || m; }catch(e){} throw new Error(m); }
+async function getJSON(url, opts){
+  const r = await fetch(url, opts);
+  if(!r.ok){ let m = r.status; try{ const j = await r.json(); m = j.reason || j.error || m; }catch(e){} throw new Error(m); }
   return r.json();
 }
 
+// ---------- forecast ----------
 async function load(){
   S.loadedAt = Date.now();
   const {lat, lon} = S.loc;
@@ -228,29 +254,22 @@ async function load(){
   const hourlyVars = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day';
   const modelParam = S.model==='best_match' ? '' : `&models=${S.model}`;
   const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
-    + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&daily=sunrise,sunset&forecast_days=3`;
+    + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&forecast_days=3`;
   const cmpUrl = `${API}?${common}&models=${MODELS.map(m=>m.id).join(',')}&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m&forecast_days=3`;
   try{
     const [main, cmp] = await Promise.all([getJSON(mainUrl), getJSON(cmpUrl).catch(e=>({error:e.message}))]);
     S.main = main; S.cmp = cmp; OFFSET = main.utc_offset_seconds || 0;
     renderAll();
     $('updated').textContent = 'updated ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-    checkAlert();
   }catch(e){
     $('updated').innerHTML = `<span class="err">couldn't load (${e.message})</span>`;
   }
-  schedule();
-}
-
-function schedule(){
   clearTimeout(S.timer);
-  S.timer = setTimeout(load, (S.alerts ? 10 : 30) * 60 * 1000);
+  S.timer = setTimeout(load, 15*60*1000);
+  sendLocation();
 }
 
-// ---------- rendering ----------
-function renderAll(){
-  renderNow(); renderRain(); renderHourly(); renderWindow(); renderCompare();
-}
+function renderAll(){ renderNow(); renderRain(); renderHourly(); renderWindow(); renderCompare(); }
 
 function renderNow(){
   const c = S.main.current;
@@ -272,43 +291,32 @@ function drawCompass(dir, mph){
   [['N',0],['E',90],['S',180],['W',270]].forEach(([l,d])=>{
     const a=d*Math.PI/180; s+=`<text x="${60+34*Math.sin(a)}" y="${60-34*Math.cos(a)+4}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--muted)">${l}</text>`;
   });
-  if(dir!=null){
-    s += `<g transform="rotate(${(dir+180)%360} 60 60)"><path d="M60 18 L72 46 L63 42 L63 98 L57 98 L57 42 L48 46 Z" fill="${col}" stroke="var(--card)" stroke-width="1.5"/></g>`;
-  }
+  if(dir!=null) s += `<g transform="rotate(${(dir+180)%360} 60 60)"><path d="M60 18 L72 46 L63 42 L63 98 L57 98 L57 42 L48 46 Z" fill="${col}" stroke="var(--card)" stroke-width="1.5"/></g>`;
   $('compass').innerHTML = s;
 }
 
 function nextSlots(){
   const m = S.main.minutely_15; if(!m) return [];
-  const now = Date.now();
-  const out = [];
-  for(let i=0;i<m.time.length;i++){
-    const t = toMs(m.time[i]);
-    if(t + 15*60000 > now) out.push({t:m.time[i], ms:t, p:m.precipitation[i]});
-  }
+  const now = Date.now(), out = [];
+  for(let i=0;i<m.time.length;i++){ const t = toMs(m.time[i]); if(t + 15*60000 > now) out.push({t:m.time[i], ms:t, p:m.precipitation[i]}); }
   return out.slice(0,8);
 }
 
 function renderRain(){
-  const slots = nextSlots();
-  const svg = $('rainChart');
-  if(!slots.length){ svg.innerHTML = `<text x="180" y="75" text-anchor="middle" fill="var(--muted)">No 15-minute data</text>`; return; }
+  const slots = nextSlots(), svg = $('rainChart');
+  if(!slots.length){ svg.innerHTML = `<text x="180" y="50" text-anchor="middle" fill="var(--muted)">No 15-minute data</text>`; return; }
   const max = Math.max(1, ...slots.map(s=>s.p||0));
-  const W=360, H=150, L=30, B=22, T=10, bw=(W-L-6)/slots.length;
-  let g = '';
-  [0, max/2, max].forEach(v=>{
-    const y = H-B-(v/max)*(H-B-T);
-    g += `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L-4}" y="${y+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v.toFixed(1)}</text>`;
-  });
-  // shade first hour
-  g += `<rect x="${L}" y="${T}" width="${bw*Math.min(4,slots.length)}" height="${H-B-T}" fill="var(--rain)" opacity=".06"/>`;
+  const W=360, H=96, L=26, B=16, T=14, bw=(W-L-4)/slots.length, ph=H-B-T;
+  let g = `<line x1="${L}" x2="${W}" y1="${H-B}" y2="${H-B}" stroke="var(--line)"/><line x1="${L}" x2="${W}" y1="${T}" y2="${T}" stroke="var(--line)" stroke-dasharray="2 3"/>`
+        + `<text x="${L-4}" y="${T+3}" text-anchor="end" font-size="9" fill="var(--muted)">${max.toFixed(1)}</text><text x="${L-4}" y="${H-B+3}" text-anchor="end" font-size="9" fill="var(--muted)">0</text>`;
+  g += `<rect x="${L}" y="${T}" width="${bw*Math.min(4,slots.length)}" height="${ph}" fill="var(--rain)" opacity=".07"/>`;
   slots.forEach((s,i)=>{
-    const v = s.p||0, h = (v/max)*(H-B-T), x = L+i*bw+3;
-    g += `<rect x="${x}" y="${H-B-h}" width="${bw-6}" height="${Math.max(h, v>0?2:0)}" rx="3" fill="var(--rain)" opacity="${i<4?1:.45}"/>`;
-    if(v>0) g += `<text x="${x+(bw-6)/2}" y="${H-B-h-4}" text-anchor="middle" font-size="10" fill="var(--ink)">${v.toFixed(1)}</text>`;
-    g += `<text x="${x+(bw-6)/2}" y="${H-6}" text-anchor="middle" font-size="10" fill="var(--muted)">${hhmm(s.t)}</text>`;
+    const v = s.p||0, h = (v/max)*ph, x = L+i*bw+5, w = bw-10;
+    g += `<rect x="${x}" y="${H-B-h}" width="${w}" height="${Math.max(h, v>0?2:0)}" rx="2" fill="var(--rain)" opacity="${i<4?1:.45}"/>`;
+    if(v>0) g += `<text x="${x+w/2}" y="${H-B-h-3}" text-anchor="middle" font-size="9" fill="var(--ink)">${v.toFixed(1)}</text>`;
+    g += `<text x="${x+w/2}" y="${H-4}" text-anchor="middle" font-size="9" fill="var(--muted)">${hhmm(s.t)}</text>`;
   });
-  g += `<text x="${L+2}" y="${T+10}" font-size="9" fill="var(--muted)">mm per 15 min · next hour shaded</text>`;
+  g += `<text x="${W-2}" y="9" text-anchor="end" font-size="8" fill="var(--muted)">mm per 15 min · next hour shaded</text>`;
   svg.innerHTML = g;
 
   const hour = slots.slice(0,4);
@@ -317,10 +325,10 @@ function renderRain(){
   const b = $('rainBanner');
   if(wet){
     const when = wet.ms <= Date.now() ? 'now' : 'from about ' + hhmm(wet.t);
-    $('rainSummary').textContent = `${total.toFixed(1)} mm in next hour`;
+    $('rainSummary').textContent = `${total.toFixed(1)} mm next hour`;
     b.className = 'banner wet'; b.textContent = `🌧️ Rain ${when} – ${total.toFixed(1)} mm expected in the next hour`;
   }else{
-    $('rainSummary').textContent = 'dry';
+    $('rainSummary').textContent = 'dry next hour';
     b.className = 'banner dry'; b.textContent = '✅ Dry for the next hour';
   }
 }
@@ -373,8 +381,7 @@ function renderWindow(){
   const today = (S.main.current.time || h.time[start]).slice(0,10);
   let best = null;
   for(let i=start;i+len<=h.time.length;i++){
-    if(h.time[i].slice(0,10)!==today) break;
-    if(h.time[i+len-1].slice(0,10)!==today) break;
+    if(h.time[i].slice(0,10)!==today || h.time[i+len-1].slice(0,10)!==today) break;
     let s=0, dark=false;
     for(let k=i;k<i+len;k++){ s+=rideScore(k); if(h.is_day && h.is_day[k]===0) dark=true; }
     if(dark) continue;
@@ -386,101 +393,128 @@ function renderWindow(){
   const endT = new Date(toMs(h.time[j]) + 3600000 + OFFSET*1000).toISOString().slice(11,16);
   const rain = h.precipitation.slice(i,j+1).reduce((a,b)=>a+(b||0),0);
   const wind = Math.max(...h.wind_speed_10m.slice(i,j+1)), gust = Math.max(...h.wind_gusts_10m.slice(i,j+1));
-  const dirs = h.wind_direction_10m.slice(i,j+1);
   $('rideWindow').innerHTML = `<span style="color:${scoreColour(best.s)}">●</span> ${hhmm(h.time[i])}–${endT}`;
-  $('rideWhy').textContent = `${rain.toFixed(1)} mm rain · wind up to ${fmtSpd(wind)} ${S.unit} from ${dirName(dirs[0])}, gusts ${fmtSpd(gust)} · start into the wind, come home with it behind you.`;
+  $('rideWhy').textContent = `${rain.toFixed(1)} mm rain · wind up to ${fmtSpd(wind)} ${S.unit} from ${dirName(h.wind_direction_10m[i])}, gusts ${fmtSpd(gust)} · start into the wind, come home with it behind you.`;
 }
 
-function cmpSeries(modelId, metric){
-  const h = S.cmp.hourly;
-  const key = {wind:'wind_speed_10m', gust:'wind_gusts_10m', rain:'precipitation', temp:'temperature_2m'}[metric];
-  const arr = h[`${key}_${modelId}`] || [];
-  return arr.map(v => v==null ? null : (metric==='wind'||metric==='gust') ? spd(v) : v);
+// ---------- model comparison ----------
+function cmpArr(modelId, key){ return (S.cmp.hourly[`${key}_${modelId}`] || []); }
+
+function lineChart(svgId, series, opts){
+  const svg = $(svgId), vb = svg.viewBox.baseVal, W = vb.width, H = vb.height;
+  const N = opts.n, L=28, R=6, T=8, B=18;
+  const all = series.flatMap(s=>s.v).filter(x=>x!=null);
+  if(!all.length){ svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" fill="var(--muted)" font-size="11">No data</text>`; return; }
+  let lo = opts.zero ? 0 : Math.floor(Math.min(...all)), hi = Math.max(...all);
+  if(opts.minTop) hi = Math.max(hi, opts.minTop);
+  hi = opts.zero ? hi : Math.ceil(hi);
+  if(hi-lo<1) hi = lo+1;
+  const x = i => L + i*(W-L-R)/(N-1), y = v => H-B-(v-lo)/(hi-lo)*(H-B-T);
+  let g='';
+  for(let k=0;k<=3;k++){ const v=lo+(hi-lo)*k/3; g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-4}" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${opts.dp?v.toFixed(opts.dp):Math.round(v)}</text>`; }
+  opts.times.forEach((t,i)=>{
+    if(t.endsWith('T00:00')) g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="3 3" opacity=".6"/><text x="${x(i)+3}" y="${T+8}" font-size="8" fill="var(--muted)">${dayLabel(t).slice(0,3)}</text>`;
+    if(i%6===0) g+=`<text x="${x(i)}" y="${H-5}" text-anchor="middle" font-size="9" fill="var(--muted)">${hhmm(t)}</text>`;
+  });
+  series.forEach(s=>{
+    if(opts.bars){
+      const bw = (W-L-R)/N/series.length;
+      s.v.forEach((v,i)=>{ if(!v) return; const h=(v-lo)/(hi-lo)*(H-B-T); g+=`<rect x="${x(i)-((W-L-R)/N)/2+s.k*bw}" y="${H-B-h}" width="${Math.max(bw,0.8)}" height="${h}" fill="${s.color}"/>`; });
+    }else{
+      let d='', pen=false;
+      s.v.forEach((v,i)=>{ if(v==null){pen=false;return;} d+=(pen?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; pen=true; });
+      g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.8" stroke-linejoin="round"/>`;
+    }
+  });
+  svg.innerHTML = g;
 }
 
 function renderCompare(){
-  const svg = $('cmpChart');
-  if(!S.cmp || S.cmp.error || !S.cmp.hourly){ svg.innerHTML = `<text x="180" y="95" text-anchor="middle" fill="var(--muted)">Model comparison unavailable</text>`; $('cmpTable').innerHTML=''; return; }
+  if(!S.cmp || S.cmp.error || !S.cmp.hourly){
+    ['cmpWind','cmpRain','cmpTemp'].forEach(id=>$(id).innerHTML=`<text x="180" y="50" text-anchor="middle" fill="var(--muted)" font-size="11">Model comparison unavailable</text>`);
+    $('cmpTable').innerHTML=''; return;
+  }
   const h = S.cmp.hourly, now = Date.now();
   let start = h.time.findIndex(t => toMs(t)+3600000 > now); if(start<0) start=0;
-  const N = Math.min(48, h.time.length-start);
-  const metric = S.metric;
-  const series = MODELS.map(m => ({...m, v: cmpSeries(m.id, metric).slice(start, start+N)})).filter(s=>s.v.some(x=>x!=null));
-  const all = series.flatMap(s=>s.v).filter(x=>x!=null);
-  let lo = Math.min(...all), hi = Math.max(...all);
-  if(metric!=='temp') lo = 0;
-  if(hi-lo<1) hi = lo+1;
-  const W=360,H=190,L=30,R=6,T=10,B=24;
-  const x = i => L + i*(W-L-R)/(N-1), y = v => H-B-(v-lo)/(hi-lo)*(H-B-T);
-  let g='';
-  for(let k=0;k<=4;k++){ const v=lo+(hi-lo)*k/4; g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-4}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${metric==='rain'?v.toFixed(1):Math.round(v)}</text>`; }
-  for(let i=0;i<N;i++){
-    const t=h.time[start+i];
-    if(t.endsWith('T00:00')) g+=`<line x1="${x(i)}" x2="${x(i)}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="3 3"/><text x="${x(i)+3}" y="${T+9}" font-size="9" fill="var(--muted)">${dayLabel(t).split(' ')[0].slice(0,3)}</text>`;
-    if(i%6===0) g+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--muted)">${hhmm(t)}</text>`;
-  }
-  series.forEach(s=>{
-    let d='', pen=false;
-    s.v.forEach((v,i)=>{ if(v==null){pen=false;return;} d+=(pen?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; pen=true; });
-    g+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
-  });
-  const unitLbl = {wind:S.unit, gust:S.unit, rain:'mm/h', temp:'°C'}[metric];
-  g+=`<text x="${W-R}" y="${T+9}" text-anchor="end" font-size="9" fill="var(--muted)">${unitLbl}</text>`;
-  svg.innerHTML = g;
-  $('cmpLegend').innerHTML = series.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
+  const N = Math.min(48, h.time.length-start), times = h.time.slice(start, start+N);
+  const models = MODELS.filter(m => cmpArr(m.id,'temperature_2m').some(v=>v!=null));
+  const ser = key => models.map((m,k)=>({...m, k, v: cmpArr(m.id,key).slice(start,start+N).map(v=>v==null?null:(key.startsWith('wind_s')||key.startsWith('wind_g')?spd(v):v))}));
+  $('cmpLegend').innerHTML = models.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('');
+  $('lblWind').textContent = `Wind (${S.unit})`;
+  lineChart('cmpWind', ser('wind_speed_10m'), {n:N, times, zero:true});
+  lineChart('cmpRain', ser('precipitation'), {n:N, times, zero:true, bars:true, minTop:1, dp:1});
+  lineChart('cmpTemp', ser('temperature_2m'), {n:N, times});
 
-  // table: next 24 h
-  let html = `<tr><th>Time</th>${series.map(s=>`<th style="color:${s.color}">${s.name}</th>`).join('')}</tr>`;
+  let html = `<tr><th>Time</th>${models.map(s=>`<th style="color:${s.color}">${s.name.replace(' ','<br>')}</th>`).join('')}</tr>`;
   let lastDay='';
   for(let i=0;i<Math.min(24,N);i++){
-    const t=h.time[start+i], d=t.slice(0,10);
-    if(d!==lastDay){ html+=`<tr class="day"><td colspan="${series.length+1}">${dayLabel(t)}</td></tr>`; lastDay=d; }
+    const k = start+i, t=h.time[k], d=t.slice(0,10);
+    if(d!==lastDay){ html+=`<tr class="day"><td colspan="${models.length+1}">${dayLabel(t)}</td></tr>`; lastDay=d; }
     html+=`<tr><td><b>${hhmm(t)}</b></td>`;
-    series.forEach(s=>{
-      const v=s.v[i];
-      if(v==null){ html+='<td class="muted">–</td>'; return; }
-      if(metric==='wind'||metric==='gust'){
-        const dir = (h[`wind_direction_10m_${s.id}`]||[])[start+i];
-        const mph = S.unit==='mph'?v:v/1.609344;
-        html+=`<td>${metric==='wind'?arrowSvg(dir, windColour(mph), 18):''}<b style="color:${windColour(mph)}">${Math.round(v)}</b></td>`;
-      } else if(metric==='rain'){
-        html+=`<td>${v>0?`<b style="color:var(--rain)">${v.toFixed(1)}</b>`:'<span class="muted">0</span>'}</td>`;
-      } else html+=`<td>${Math.round(v)}°</td>`;
+    models.forEach(m=>{
+      const w=cmpArr(m.id,'wind_speed_10m')[k], dir=cmpArr(m.id,'wind_direction_10m')[k], p=cmpArr(m.id,'precipitation')[k], te=cmpArr(m.id,'temperature_2m')[k];
+      html+=`<td>${w==null?'–':arrowSvg(dir, windColour(w), 16)+`<b style="color:${windColour(w)}">${fmtSpd(w)}</b>`}<br>`
+          + `${p==null?'':p>0?`<span style="color:var(--rain);font-weight:700">${p.toFixed(1)}</span>`:'<span class="muted">0</span>'}`
+          + ` <span class="muted">${te==null?'':Math.round(te)+'°'}</span></td>`;
     });
     html+='</tr>';
   }
   $('cmpTable').innerHTML = html;
 }
 
-// ---------- rain alerts ----------
-function alertNote(){
-  let msg = '';
-  if(!('Notification' in window)) msg = 'This browser does not support notifications – you will get the banner at the top instead.';
-  else if(Notification.permission==='denied') msg = 'Notifications are blocked for this site in your browser settings – the banner will still show.';
-  else msg = 'Checks every 10 minutes while this page is open (keep the tab open, or add it to your home screen).';
-  $('alertNote').textContent = S.alerts ? msg : '';
+// ---------- alert server (ntfy) ----------
+const srvOK = () => S.srv.url && S.srv.key;
+const srvUrl = path => S.srv.url.replace(/\/+$/,'') + path + '?key=' + encodeURIComponent(S.srv.key);
+
+async function srv(path, body){
+  return getJSON(srvUrl(path), body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : undefined);
 }
 
-async function enableAlerts(on){
-  S.alerts = on; store.set('alerts', on);
-  if(on && 'Notification' in window && Notification.permission==='default'){
-    try{ await Notification.requestPermission(); }catch(e){}
+function showSrvState(msg, cls){
+  const st = S.srvState;
+  let line = '';
+  if(!srvOK()) line = 'Phone alerts not set up – tap ⚙ to connect your alert server.';
+  else if(!st) line = 'Alert server: connecting…';
+  else{
+    const s = st.settings;
+    line = s.enabled ? `🔔 Phone alerts on` : `🔕 Phone alerts off`;
+    if(st.loc) line += ` · watching ${st.loc.source==='owntracks'?'tracked':'your'} location from ${ago(st.loc.ts)}`;
+    else line += ' · no location sent yet';
   }
-  alertNote(); schedule(); if(on) checkAlert();
+  $('alertLine').textContent = line;
+  $('srvStatus').innerHTML = msg ? `<span class="${cls||''}">${msg}</span>` : line;
 }
 
-function checkAlert(){
-  if(!S.alerts || !S.main) return;
-  const slot = nextSlots().slice(0,4).find(s => (s.p||0) >= S.thresh);
-  if(!slot) return;
-  if(Date.now() - S.lastAlert < 45*60000) return;
-  S.lastAlert = Date.now(); store.set('lastAlert', S.lastAlert);
-  const when = slot.ms <= Date.now() ? 'now' : 'around ' + hhmm(slot.t);
-  const body = `${slot.p.toFixed(1)} mm expected ${when} at ${S.loc.name}.`;
+async function refreshSrv(){
+  if(!srvOK()){ S.srvState=null; showSrvState(); return; }
   try{
-    if('Notification' in window && Notification.permission==='granted') new Notification('🌧️ Rain coming', {body, tag:'rain'});
-  }catch(e){}
-  try{ navigator.vibrate && navigator.vibrate([200,100,200]); }catch(e){}
+    S.srvState = await srv('/status');
+    const s = S.srvState.settings;
+    $('srvOn').checked = s.enabled; $('alertThresh').value = String(s.thresh);
+    $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd);
+    showSrvState();
+  }catch(e){ S.srvState=null; showSrvState(`Can't reach alert server (${e.message})`, 'err'); $('alertLine').textContent='Phone alerts: server not reachable'; }
+}
+
+let lastSent = 0;
+function sendLocation(force){
+  if(!srvOK() || !S.share || !navigator.geolocation) return;
+  if(!force && Date.now()-lastSent < 5*60000) return;
+  navigator.geolocation.getCurrentPosition(async p => {
+    try{
+      await srv('/loc', {lat:p.coords.latitude, lon:p.coords.longitude, source:'app'});
+      lastSent = Date.now(); refreshSrv();
+    }catch(e){}
+  }, ()=>{}, {enableHighAccuracy:false, timeout:15000, maximumAge:120000});
+}
+
+async function pushSettings(){
+  if(!srvOK()) return;
+  try{
+    const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value});
+    if(S.srvState) S.srvState.settings = r.settings;
+    showSrvState('Saved ✓', 'okc');
+  }catch(e){ showSrvState(`Couldn't save (${e.message})`, 'err'); }
 }
 
 // ---------- location & search ----------
@@ -491,7 +525,7 @@ $('locBtn').onclick = () => {
   $('updated').textContent='finding you…';
   navigator.geolocation.getCurrentPosition(
     p => setLoc({name:'My location', lat:+p.coords.latitude.toFixed(4), lon:+p.coords.longitude.toFixed(4)}),
-    e => { $('updated').innerHTML = `<span class="err">location refused</span>`; },
+    () => { $('updated').innerHTML = `<span class="err">location refused</span>`; },
     {enableHighAccuracy:false, timeout:10000, maximumAge:600000});
 };
 
@@ -514,9 +548,19 @@ $('searchForm').onsubmit = async ev => {
 document.addEventListener('click', e => { if(!e.target.closest('.search')) $('results').hidden = true; });
 
 // ---------- controls ----------
+function applyFs(){
+  document.documentElement.className = S.fs==='m' ? '' : 'fs-'+S.fs;
+  document.querySelectorAll('#fsSeg button').forEach(b=>b.classList.toggle('on', b.dataset.fs===S.fs));
+}
+document.querySelectorAll('#fsSeg button').forEach(b => b.onclick = () => { S.fs = b.dataset.fs; store.set('fs', S.fs); applyFs(); });
+applyFs();
+
+$('setBtn').onclick = () => { $('settings').hidden = !$('settings').hidden; if(!$('settings').hidden) refreshSrv(); };
+$('setClose').onclick = () => { $('settings').hidden = true; };
+
 $('unitBtn').textContent = S.unit;
 $('unitBtn').onclick = () => { S.unit = S.unit==='mph' ? 'km/h' : 'mph'; store.set('unit', S.unit); $('unitBtn').textContent = S.unit; if(S.main) renderAll(); };
-$('refreshBtn').onclick = load;
+$('refreshBtn').onclick = () => { load(); refreshSrv(); };
 
 $('modelSel').innerHTML = `<option value="best_match">Best match</option>` + MODELS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
 $('modelSel').value = S.model;
@@ -527,24 +571,34 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
   $('tab-hourly').hidden = b.dataset.tab!=='hourly';
   $('tab-compare').hidden = b.dataset.tab!=='compare';
 });
-document.querySelectorAll('#metricChips .chip').forEach(c => c.onclick = () => {
-  document.querySelectorAll('#metricChips .chip').forEach(x=>x.classList.toggle('on', x===c));
-  S.metric = c.dataset.m; if(S.cmp) renderCompare();
-});
 
-$('alertToggle').checked = S.alerts;
-$('alertToggle').onchange = e => enableAlerts(e.target.checked);
-$('alertThresh').value = String(S.thresh);
-$('alertThresh').onchange = e => { S.thresh = +e.target.value; store.set('thresh', S.thresh); checkAlert(); };
 $('rideLen').value = String(S.rideLen);
 $('rideLen').onchange = e => { S.rideLen = +e.target.value; store.set('rideLen', S.rideLen); if(S.main) renderWindow(); };
 
+for(let h=0;h<24;h++){ const o=`<option value="${h}">${String(h).padStart(2,'0')}:00</option>`; $('qStart').insertAdjacentHTML('beforeend',o); $('qEnd').insertAdjacentHTML('beforeend',o); }
+$('qStart').value='22'; $('qEnd').value='6';
+$('srvUrl').value = S.srv.url; $('srvKey').value = S.srv.key; $('shareLoc').checked = S.share;
+$('srvSave').onclick = async () => {
+  S.srv = {url:$('srvUrl').value.trim(), key:$('srvKey').value.trim()}; store.set('srv', S.srv);
+  await refreshSrv(); if(S.srvState){ showSrvState('Connected ✓', 'okc'); sendLocation(true); }
+};
+$('srvTest').onclick = async () => { try{ await srv('/test'); showSrvState('Test sent – check ntfy', 'okc'); }catch(e){ showSrvState(`Test failed (${e.message})`, 'err'); } };
+$('srvCheck').onclick = async () => {
+  try{ const r = await srv('/check'); showSrvState(r.dry ? 'Checked: dry for the next hour (notification sent)' : r.alerted ? 'Checked: rain due – alert sent' : (r.skipped || r.error || 'Checked'), 'okc'); }
+  catch(e){ showSrvState(`Check failed (${e.message})`, 'err'); }
+};
+['srvOn','alertThresh','qStart','qEnd'].forEach(id => $(id).onchange = pushSettings);
+$('shareLoc').onchange = e => { S.share = e.target.checked; store.set('share', S.share); if(S.share) sendLocation(true); };
+
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState==='visible' && S.main && Date.now() - (S.loadedAt||0) > 5*60000) load();
+  if(document.visibilityState==='visible'){
+    if(S.main && Date.now() - S.loadedAt > 5*60000) load(); else sendLocation();
+    refreshSrv();
+  }
 });
 
-alertNote();
 load();
+refreshSrv();
 </script>
 </body>
 </html>
