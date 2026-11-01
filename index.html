@@ -721,6 +721,18 @@ function cmpChart(svgId, series, opts){
         lines = [{txt:`Avg ${opts.fmt(mean)}${opts.unit||''}`, col:'var(--ink)', bold:true}];
         if(vs.length>1) lines.push({txt:`range ${opts.fmt(Math.min(...vs))}–${opts.fmt(Math.max(...vs))}`, col:'var(--muted)'});
       } else lines = vals.map(o=>({txt:`${o.name} ${opts.fmt(o.v)}`, col:o.color}));
+      if(S.cmpMode==='avg'){
+        // just the average, big, in a pill above the point
+        const vs = vals.map(o=>o.v), mean = vs.reduce((a,b)=>a+b,0)/vs.length, txt = opts.fmt(mean) + (opts.unit||'');
+        const pw2 = txt.length*10.5 + 14, ph = 24, ym = y(mean);
+        let px2 = xi - pw2/2; px2 = Math.max(L, Math.min(W-R-pw2, px2));
+        let py = ym - ph - 8; if(py < 1) py = ym + 8;
+        g += `<line x1="${xi}" x2="${xi}" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="2 2"/>`
+           + `<circle cx="${xi}" cy="${ym}" r="4" fill="var(--ink)" stroke="var(--card)" stroke-width="1.5"/>`
+           + `<rect x="${px2}" y="${py}" width="${pw2}" height="${ph}" rx="12" fill="var(--bg)" stroke="var(--ink)" stroke-width="1" opacity=".95"/>`
+           + `<text x="${px2+pw2/2}" y="${py+17.5}" text-anchor="middle" font-size="17" font-weight="800" fill="var(--ink)">${txt}</text>`;
+        svg.innerHTML = g; return;
+      }
       const bw = Math.max(head.length, ...lines.map(l=>l.txt.length))*5.3 + 12, bh = 14 + lines.length*11;
       let bx = xi + 8; if(bx + bw > W-R) bx = xi - 8 - bw; if(bx < L) bx = L;
       const by = T + 2;
