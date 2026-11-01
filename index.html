@@ -726,11 +726,12 @@ function cmpChart(svgId, series, opts){
         const vs = vals.map(o=>o.v), mean = vs.reduce((a,b)=>a+b,0)/vs.length, txt = opts.fmt(mean) + (opts.unit||'');
         const pw2 = txt.length*10.5 + 14, ph = 24, ym = y(mean);
         let px2 = xi - pw2/2; px2 = Math.max(L, Math.min(W-R-pw2, px2));
-        let py = ym - ph - 8; if(py < 1) py = ym + 8;
+        let py = ym - ph - 8; if(py < 16) py = ym + 8;
         g += `<line x1="${xi}" x2="${xi}" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="2 2"/>`
            + `<circle cx="${xi}" cy="${ym}" r="4" fill="var(--ink)" stroke="var(--card)" stroke-width="1.5"/>`
            + `<rect x="${px2}" y="${py}" width="${pw2}" height="${ph}" rx="12" fill="var(--bg)" stroke="var(--ink)" stroke-width="1" opacity=".95"/>`
            + `<text x="${px2+pw2/2}" y="${py+17.5}" text-anchor="middle" font-size="17" font-weight="800" fill="var(--ink)">${txt}</text>`;
+        g += timeTag(xi, t);
         svg.innerHTML = g; return;
       }
       const bw = Math.max(head.length, ...lines.map(l=>l.txt.length))*5.3 + 12, bh = 14 + lines.length*11;
@@ -744,11 +745,19 @@ function cmpChart(svgId, series, opts){
          + lines.map((l,n)=>`<text x="${bx+6}" y="${by+22+n*11}" font-size="9.5" ${l.bold?'font-weight="800"':''} fill="${l.col}">${l.txt}</text>`).join('');
     }
   }
+  if(TIP!=null && TIP>=i0 && TIP<i1 && opts.fmt && S.cmpMode!=='avg') g += timeTag(x(TIP), opts.times[TIP]);
   svg.innerHTML = g;
 }
 
 let CMP = null;   // prepared series for the visible charts
 let TIP = null;   // hour index the user tapped on the graphs
+// small "Mon 12" tag sitting on the dotted line at the top of a graph
+function timeTag(xi, t){
+  const txt = `${dayLabel(t).slice(0,3)} ${t.slice(11,13)}`, w = txt.length*6.2 + 10;
+  const x0 = Math.max(28, Math.min(354 - w, xi - w/2));
+  return `<rect x="${x0}" y="0" width="${w}" height="13" rx="6.5" fill="var(--ink)"/>`
+       + `<text x="${x0+w/2}" y="9.7" text-anchor="middle" font-size="9.5" font-weight="800" fill="var(--bg)">${txt}</text>`;
+}
 const CHARTS = [
   {id:'wind',  key:'wind_speed_10m',      label:()=>`Wind (${S.unit})`,   h:140, opts:{zero:true, color:'#f59e0b', fmt:v=>Math.round(v)}, speed:true},
   {id:'gust',  key:'wind_gusts_10m',      label:()=>`Gusts (${S.unit})`,  h:130, opts:{zero:true, color:'#ef4444', fmt:v=>Math.round(v)}, speed:true},
