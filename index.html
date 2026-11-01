@@ -257,7 +257,7 @@ footer a{color:inherit}
       <div class="legend" id="cmpLegend"></div>
       <div class="chips" id="cmpPick"></div>
       <div id="cmpCharts"></div>
-      <div class="small muted" style="margin-top:4px">Pinch to zoom, drag to move · up to 14 days · drag ⠿ to reorder graphs</div>
+      <div class="small muted" style="margin-top:4px">Pinch to zoom, drag to move · up to 14 days · tap a graph for values · drag ⠿ to reorder</div>
       <div class="muted small" id="alertLine" style="margin-top:6px"></div>
       <div class="fold sub" data-fold="table">
         <button class="foldhead subhead" type="button"><span class="chev">▾</span> Data table – next 24 hours</button>
@@ -709,19 +709,43 @@ function cmpChart(svgId, series, opts){
   const nowOff = (Date.now() - toMs(opts.times[0]))/3600000 - .5;
   if(nowOff>=CZ.i0-1 && nowOff<=CZ.i1) g += `<line x1="${x(nowOff)}" x2="${x(nowOff)}" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1" opacity=".7"/>`;
   g += `</g>`;
+  // tapped hour: marker line + value box
+  if(TIP!=null && TIP>=i0 && TIP<i1 && opts.fmt){
+    const vals = series.map(s=>({name:s.name, color:s.color, v:s.v[TIP]})).filter(o=>o.v!=null);
+    if(vals.length){
+      const xi = x(TIP), t = opts.times[TIP];
+      const head = `${dayLabel(t).slice(0,3)} ${hhmm(t)}`;
+      let lines;
+      if(S.cmpMode==='avg'){
+        const vs = vals.map(o=>o.v), mean = vs.reduce((a,b)=>a+b,0)/vs.length;
+        lines = [{txt:`Avg ${opts.fmt(mean)}${opts.unit||''}`, col:'var(--ink)', bold:true}];
+        if(vs.length>1) lines.push({txt:`range ${opts.fmt(Math.min(...vs))}–${opts.fmt(Math.max(...vs))}`, col:'var(--muted)'});
+      } else lines = vals.map(o=>({txt:`${o.name} ${opts.fmt(o.v)}`, col:o.color}));
+      const bw = Math.max(head.length, ...lines.map(l=>l.txt.length))*5.3 + 12, bh = 14 + lines.length*11;
+      let bx = xi + 8; if(bx + bw > W-R) bx = xi - 8 - bw; if(bx < L) bx = L;
+      const by = T + 2;
+      g += `<line x1="${xi}" x2="${xi}" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1.2" stroke-dasharray="2 2"/>`;
+      if(S.cmpMode==='avg'){ const vs = vals.map(o=>o.v), mean = vs.reduce((a,b)=>a+b,0)/vs.length; g += `<circle cx="${xi}" cy="${y(mean)}" r="3.5" fill="var(--ink)" stroke="var(--card)" stroke-width="1.5"/>`; }
+      else vals.forEach(o => g += `<circle cx="${xi}" cy="${y(o.v)}" r="2.6" fill="${o.color}" stroke="var(--card)" stroke-width="1"/>`);
+      g += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="5" fill="var(--bg)" stroke="var(--line)" opacity=".95"/>`
+         + `<text x="${bx+6}" y="${by+11}" font-size="9" font-weight="700" fill="var(--muted)">${head}</text>`
+         + lines.map((l,n)=>`<text x="${bx+6}" y="${by+22+n*11}" font-size="9.5" ${l.bold?'font-weight="800"':''} fill="${l.col}">${l.txt}</text>`).join('');
+    }
+  }
   svg.innerHTML = g;
 }
 
 let CMP = null;   // prepared series for the visible charts
+let TIP = null;   // hour index the user tapped on the graphs
 const CHARTS = [
-  {id:'wind',  key:'wind_speed_10m',      label:()=>`Wind (${S.unit})`,   h:140, opts:{zero:true, color:'#f59e0b'}, speed:true},
-  {id:'gust',  key:'wind_gusts_10m',      label:()=>`Gusts (${S.unit})`,  h:130, opts:{zero:true, color:'#ef4444'}, speed:true},
-  {id:'rain',  key:'precipitation',       label:()=>'Rain (mm per hour)', h:110, opts:{zero:true, bars:true, minTop:1, dp:1, color:'var(--rain)'}},
-  {id:'temp',  key:'temperature_2m',      label:()=>'Temperature (°C)',   h:120, opts:{color:'#f97316'}},
-  {id:'feels', key:'apparent_temperature',label:()=>'Feels like (°C)',    h:120, opts:{color:'#fb923c'}},
-  {id:'cloud', key:'cloud_cover',         label:()=>'Cloud cover (%)',    h:110, opts:{zero:true, color:'#cbd5e1'}},
-  {id:'hum',   key:'relative_humidity_2m',label:()=>'Humidity (%)',       h:110, opts:{zero:true, color:'#22d3ee'}},
-  {id:'press', key:'pressure_msl',        label:()=>'Pressure (hPa)',     h:110, opts:{color:'#a78bfa'}},
+  {id:'wind',  key:'wind_speed_10m',      label:()=>`Wind (${S.unit})`,   h:140, opts:{zero:true, color:'#f59e0b', fmt:v=>Math.round(v)}, speed:true},
+  {id:'gust',  key:'wind_gusts_10m',      label:()=>`Gusts (${S.unit})`,  h:130, opts:{zero:true, color:'#ef4444', fmt:v=>Math.round(v)}, speed:true},
+  {id:'rain',  key:'precipitation',       label:()=>'Rain (mm per hour)', h:110, opts:{zero:true, bars:true, minTop:1, dp:1, color:'var(--rain)', fmt:v=>v.toFixed(1), unit:' mm'}},
+  {id:'temp',  key:'temperature_2m',      label:()=>'Temperature (°C)',   h:120, opts:{color:'#f97316', fmt:v=>v.toFixed(1), unit:'°'}},
+  {id:'feels', key:'apparent_temperature',label:()=>'Feels like (°C)',    h:120, opts:{color:'#fb923c', fmt:v=>v.toFixed(1), unit:'°'}},
+  {id:'cloud', key:'cloud_cover',         label:()=>'Cloud cover (%)',    h:110, opts:{zero:true, color:'#cbd5e1', fmt:v=>Math.round(v), unit:'%'}},
+  {id:'hum',   key:'relative_humidity_2m',label:()=>'Humidity (%)',       h:110, opts:{zero:true, color:'#22d3ee', fmt:v=>Math.round(v), unit:'%'}},
+  {id:'press', key:'pressure_msl',        label:()=>'Pressure (hPa)',     h:110, opts:{color:'#a78bfa', fmt:v=>Math.round(v)}},
 ];
 let PICK = store.get('cmpPick', ['wind','rain','temp']);
 let ORDER = store.get('cmpOrder', CHARTS.map(c=>c.id));
@@ -749,10 +773,17 @@ function buildChartSlots(){
   const box = $('cmpCharts'); box.innerHTML = '';
   ordered().filter(c=>PICK.includes(c.id)).forEach(c => {
     box.insertAdjacentHTML('beforeend', `<div class="cblock" data-c="${c.id}"><div class="chartlbl crow"><span id="lbl_${c.id}">${c.label()}</span><span class="grip" title="Drag to reorder">${GRIP}</span></div><svg id="cmp_${c.id}" class="zoomable" viewBox="0 0 360 ${c.h}" width="100%"></svg></div>`);
-    attachZoom($('cmp_'+c.id), CZ, drawCompareCharts);
+    attachZoom($('cmp_'+c.id), CZ, drawCompareCharts, 28, 6, 4, cmpTap);
   });
   box.querySelectorAll('.grip').forEach(g => attachDrag(g));
   if(!PICK.length) box.innerHTML = '<div class="muted small" style="padding:10px 0">Tap a chip above to show a graph.</div>';
+}
+
+// tap a graph: show values for that hour on every graph (tap the same hour again to hide)
+function cmpTap(px, L, pw){
+  const slot = pw/(CZ.i1-CZ.i0), i = Math.round(CZ.i0 + (px-L)/slot - .5);
+  TIP = (TIP===i || i<0 || !CMP || i>=CMP.times.length) ? null : i;
+  drawCompareCharts();
 }
 
 // drag a graph by its grip to reorder
@@ -835,13 +866,13 @@ function renderCompare(){
 }
 
 // pinch / drag / wheel zoom shared by the compare charts
-function attachZoom(svg, Z, redraw, L=28, R=6, minSpan=4){
-  const pts = new Map(); let st = null;
+function attachZoom(svg, Z, redraw, L=28, R=6, minSpan=4, onTap=null){
+  const pts = new Map(); let st = null, down = null, multi = false;
   const toX = e => { const r = svg.getBoundingClientRect(); return (e.clientX - r.left) / r.width * svg.viewBox.baseVal.width; };
   const pw = () => svg.viewBox.baseVal.width - L - R;
   const clamp = () => { const span = Math.max(minSpan, Math.min(Z.n, Z.i1-Z.i0)); let a = Math.max(0, Z.i0); if(a+span>Z.n) a = Z.n-span; Z.i0=a; Z.i1=a+span; };
   const snap = () => { st = {i0:Z.i0, i1:Z.i1, pts:new Map(pts)}; };
-  svg.addEventListener('pointerdown', e => { try{ svg.setPointerCapture(e.pointerId); }catch(_){} pts.set(e.pointerId, toX(e)); snap(); });
+  svg.addEventListener('pointerdown', e => { try{ svg.setPointerCapture(e.pointerId); }catch(_){} pts.set(e.pointerId, toX(e)); if(pts.size===1){ down = {x:e.clientX, y:e.clientY, t:Date.now()}; multi = false; } else multi = true; snap(); });
   svg.addEventListener('pointermove', e => {
     if(!pts.has(e.pointerId) || !st) return;
     pts.set(e.pointerId, toX(e));
@@ -856,13 +887,16 @@ function attachZoom(svg, Z, redraw, L=28, R=6, minSpan=4){
     }
     clamp(); redraw();
   });
-  const end = e => { pts.delete(e.pointerId); snap(); };
+  const end = e => {
+    if(e.type==='pointerup' && onTap && down && !multi && pts.size===1 && Math.hypot(e.clientX-down.x, e.clientY-down.y) < 8 && Date.now()-down.t < 500) onTap(toX(e), L, pw());
+    pts.delete(e.pointerId); snap();
+  };
   svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
   svg.addEventListener('wheel', e => { e.preventDefault(); const c = Z.i0 + (toX(e)-L)/pw()*(Z.i1-Z.i0), f = e.deltaY>0 ? 1.2 : 1/1.2;
     Z.i1 = c + (Z.i1-c)*f; Z.i0 = c - (c-Z.i0)*f; clamp(); redraw(); }, {passive:false});
 }
 buildChartSlots();
-$('cmpReset').onclick = () => { CZ.i0 = 0; CZ.i1 = Math.min(48, CZ.n); drawCompareCharts(); };
+$('cmpReset').onclick = () => { TIP = null; CZ.i0 = 0; CZ.i1 = Math.min(48, CZ.n); drawCompareCharts(); };
 document.querySelectorAll('#cmpMode button').forEach(b => b.onclick = () => { S.cmpMode = b.dataset.m; store.set('cmpMode', S.cmpMode); renderCompare(); });
 
 // ---------- alert server (ntfy) ----------
