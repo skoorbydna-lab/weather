@@ -135,7 +135,7 @@ footer a{color:inherit}
 .subhead .chev{margin-left:0}
 #mapLegend{margin-top:8px;font-size:.72rem;color:var(--muted)}
 #mapLegend .lrow{display:flex;align-items:flex-start;gap:8px;margin-bottom:6px}
-#mapLegend .lname{flex:0 0 4.6rem;font-weight:700;padding-top:0}
+#mapLegend .lname{flex:0 0 5.2rem;font-weight:700;padding-top:0}
 #mapLegend .lscale{flex:1;padding:0 8px}
 #mapLegend .bar{height:9px;border-radius:5px}
 #mapLegend .ticks{position:relative;height:1.1em;margin-top:2px}
@@ -312,7 +312,7 @@ footer a{color:inherit}
         <span style="min-width:7.5em">Forecast <b id="fcTime">–</b></span>
         <input type="range" id="fcSlider" min="0" max="23" value="0">
       </div>
-      <div class="muted small" style="margin-top:8px">Radar shows rain that has actually fallen in the last 2 hours. Rain, cloud, temperature and wind are the forecast for the time on the forecast slider. Wind streaks flow the way the wind blows, coloured by strength.</div>
+      <div class="muted small" style="margin-top:8px">Radar shows rain that has actually fallen in the last 2 hours. Rain, cloud, temperature and wind are the forecast for the time on the forecast slider; forecast rain only shows where at least 2 of DMI, ICON and the Met Office agree. Wind streaks flow the way the wind blows, coloured by strength.</div>
     </div>
   </section>
 
@@ -1093,7 +1093,8 @@ function buildFields(){
   const g = M.grid, k = M.fcIdx, F = {temp:[], cloud:[], rain:[], u:[], v:[], spd:[]};
   g.data.forEach((d, idx) => {
     const h = d.hourly, s = h.wind_speed_10m[k], dir = h.wind_direction_10m[k];
-    F.temp[idx] = h.temperature_2m[k]; F.cloud[idx] = h.cloud_cover[k]; F.rain[idx] = h.precipitation[k]; F.spd[idx] = s;
+    F.temp[idx] = h.temperature_2m[k]; F.cloud[idx] = h.cloud_cover[k]; F.spd[idx] = s;
+    F.rain[idx] = g.rainAgree ? g.rainAgree[idx][k] : h.precipitation[k];
     const r = (dir ?? 0) * Math.PI/180;
     F.u[idx] = s==null ? 0 : -s*Math.sin(r);   // blowing towards east +
     F.v[idx] = s==null ? 0 : -s*Math.cos(r);   // blowing towards north +
@@ -1195,7 +1196,7 @@ function updateLegend(){
     const km = S.unit!=='mph', ticks = [0,5,10,15,20,25,30,35];
     rows.push(legendRow(`🌬️ ${S.unit}`, WIND_STOPS, 0, 35, ticks, lin, v => km ? Math.round(v*1.609) : v));
   }
-  if(LAYERS.rain) rows.push(legendRow('🌧️ mm/h', RAIN_STOPS, 0.05, 8, [0.1,0.25,0.5,1,2,4,8], v=>Math.log(v), v=>v));
+  if(LAYERS.rain) rows.push(legendRow('🌧️ mm/h · 2 of 3 models', RAIN_STOPS, 0.05, 8, [0.1,0.25,0.5,1,2,4,8], v=>Math.log(v), v=>v));
   if(LAYERS.cloud) rows.push(`<div class="lrow"><span class="lname">☁️ cloud</span><div class="lscale"><div class="bar" style="background:linear-gradient(90deg,rgba(238,242,248,0),rgba(238,242,248,.85))"></div><div class="ticks"><span style="left:0">10%</span><span style="left:50%">55%</span><span style="left:100%">100%</span></div></div></div>`);
   $('mapLegend').innerHTML = rows.join('');
 }
@@ -1236,6 +1237,7 @@ function showMap(){
         else if(l==='wx'){ cb.checked ? M.iconGroup.addTo(M.map) : M.map.removeLayer(M.iconGroup); }
         else if(l==='wind'){ M.windLayer.redraw(); }
         else M.fieldLayer.redraw();
+        if(l==='rain' && cb.checked) loadRainAgree();
         updateLegend();
       };
     });
@@ -1309,6 +1311,29 @@ function showRadar(i){
   $('radarTime').textContent = t.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + (mins>2?` (${mins}m ago)`:'');
 }
 
+// --- rain on the map: middle value of DMI, ICON and Met Office = shows only where at least 2 of 3 agree ---
+const RAIN_MODELS = ['dmi_seamless','icon_seamless','ukmo_seamless'];
+async function loadRainAgree(){
+  const g = M.grid; if(!g || g.rainAgree || g.rainLoading) return;
+  g.rainLoading = true;
+  const url = `${API}?latitude=${g.pts.map(p=>p.lat).join(',')}&longitude=${g.pts.map(p=>p.lon).join(',')}`
+    + `&hourly=precipitation&forecast_hours=24&timezone=auto&models=${RAIN_MODELS.join(',')}`;
+  try{
+    let d = (await cachedJSON(url, 20*60000)).data; if(!Array.isArray(d)) d = [d];
+    const n = g.data[0].hourly.time.length;
+    g.rainAgree = d.map(loc => {
+      const h = loc.hourly, out = [];
+      for(let k=0;k<n;k++){
+        const v = RAIN_MODELS.map(m => h[`precipitation_${m}`] ? h[`precipitation_${m}`][k] : null).filter(x=>x!=null).sort((a,b)=>a-b);
+        out.push(!v.length ? null : v.length===3 ? v[1] : v.length===2 ? v[0] : v[0]);   // 3 models: middle; 2: the lower (both must agree)
+      }
+      return out;
+    });
+    if(M.grid === g) drawGrid();
+  }catch(e){ /* keep showing Best match rain */ }
+  g.rainLoading = false;
+}
+
 // --- Open-Meteo forecast grid (denser, padded beyond the view) ---
 async function loadGrid(){
   if(!M.map) return;
@@ -1326,6 +1351,7 @@ async function loadGrid(){
     let d = await getJSON(url);
     if(!Array.isArray(d)) d = [d];
     M.grid = {pts, so, w, dLat, dLon, nx, ny, data:d, zoom:z, bounds:L.latLngBounds([so, w], [n, e])};
+    if(LAYERS.rain) loadRainAgree();
     const times = d[0].hourly.time, off = d[0].utc_offset_seconds || 0;
     $('fcSlider').max = times.length-1;
     if(!M.fcTouched){ const i = times.findIndex(t => Date.parse(t+':00Z') - off*1000 + 3600000 > Date.now()); M.fcIdx = Math.max(0,i); $('fcSlider').value = M.fcIdx; }
