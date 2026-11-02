@@ -298,7 +298,14 @@ footer a{color:inherit}
         <label><input type="checkbox" data-l="temp"> 🌡️ Temp</label>
         <label><input type="checkbox" data-l="wind"> 🌬️ Wind</label>
         <label><input type="checkbox" data-l="wx"> ⛅ Icons</label>
-        <button class="btn sm" id="mapStyleBtn" style="border-radius:999px"></button>
+        <select class="btn sm" id="mapStyleSel" style="border-radius:999px">
+          <option value="esriDark">🌑 Dark grey (calm)</option>
+          <option value="esriDarkLabels">🌑 Dark grey + places</option>
+          <option value="dark">🌙 Dark streets</option>
+          <option value="esriLight">🌕 Light grey (calm)</option>
+          <option value="light">☀️ Streets</option>
+          <option value="sat">🛰️ Satellite</option>
+        </select>
       </div>
       <div id="map"></div>
       <div id="mapLegend"></div>
@@ -1210,15 +1217,35 @@ function drawGrid(){
   M.fieldLayer.redraw(); M.windLayer.redraw(); drawIcons(); updateLegend();
 }
 
+// background map styles (all free, no key)
+const ESRI = n => `https://server.arcgisonline.com/ArcGIS/rest/services/${n}/MapServer/tile/{z}/{y}/{x}`;
+const WX_ATTR = ' · <a href="https://www.rainviewer.com/">Rain Viewer</a> · <a href="https://open-meteo.com/">Open-Meteo</a>';
+const BASEMAPS = {
+  light:          {url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png', cls:'light', max:19, attr:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'},
+  dark:           {url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png', cls:'dark',  max:19, attr:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'},
+  esriDark:       {url:ESRI('Canvas/World_Dark_Gray_Base'),  cls:'plain', max:16, attr:'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors'},
+  esriDarkLabels: {url:ESRI('Canvas/World_Dark_Gray_Base'),  cls:'plain', max:16, labels:ESRI('Canvas/World_Dark_Gray_Reference'), attr:'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors'},
+  esriLight:      {url:ESRI('Canvas/World_Light_Gray_Base'), cls:'plain', max:16, attr:'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors'},
+  sat:            {url:ESRI('World_Imagery'),                cls:'plain', max:18, labels:ESRI('Reference/World_Boundaries_and_Places'), attr:'Tiles © Esri — Esri, Maxar, Earthstar Geographics'},
+};
+function setBaseMap(name){
+  const b = BASEMAPS[name] || BASEMAPS.light;
+  if(M.base) M.map.removeLayer(M.base);
+  if(M.baseLabels){ M.map.removeLayer(M.baseLabels); M.baseLabels = null; }
+  M.base = L.tileLayer(b.url, {maxZoom:19, maxNativeZoom:b.max, className:'maptiles ' + b.cls, attribution:b.attr + WX_ATTR}).addTo(M.map);
+  M.base.bringToBack();
+  if(b.labels){
+    if(!M.map.getPane('baselabels')){ M.map.createPane('baselabels'); M.map.getPane('baselabels').style.zIndex = 500; M.map.getPane('baselabels').style.pointerEvents = 'none'; }
+    M.baseLabels = L.tileLayer(b.labels, {pane:'baselabels', maxZoom:19, maxNativeZoom:b.max, opacity:.9}).addTo(M.map);
+  }
+}
+
 function showMap(){
   if(typeof L==='undefined'){ $('mapStatus').innerHTML='<span class="err">map library failed to load</span>'; return; }
   M.visible = true;
   if(!M.map){
     M.map = L.map('map', {zoomControl:true, attributionControl:true}).setView([S.loc.lat, S.loc.lon], 8);
-    M.base = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, className:'maptiles ' + store.get('mapStyle','light'),
-      attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://www.rainviewer.com/">Rain Viewer</a> · <a href="https://open-meteo.com/">Open-Meteo</a>'
-    }).addTo(M.map);
+    setBaseMap(store.get('mapStyle','light'));
     M.map.createPane('fields'); M.map.getPane('fields').style.zIndex = 350;
     M.map.createPane('radar');  M.map.getPane('radar').style.zIndex = 360;
     M.map.createPane('wind');   M.map.getPane('wind').style.zIndex = 450;
@@ -1242,12 +1269,8 @@ function showMap(){
       };
     });
     $('radarRow').style.display = LAYERS.radar ? '' : 'none';
-    const styleLbl = () => $('mapStyleBtn').textContent = store.get('mapStyle','light')==='light' ? '🌙 Dark map' : '☀️ Light map';
-    styleLbl();
-    $('mapStyleBtn').onclick = () => {
-      const st = store.get('mapStyle','light')==='light' ? 'dark' : 'light'; store.set('mapStyle', st);
-      const el = M.base.getContainer(); el.classList.remove('light','dark'); el.classList.add(st); styleLbl();
-    };
+    $('mapStyleSel').value = store.get('mapStyle','light');
+    $('mapStyleSel').onchange = e => { store.set('mapStyle', e.target.value); setBaseMap(e.target.value); };
     M.map.on('moveend', () => { clearTimeout(M.timers.move); M.timers.move = setTimeout(loadGrid, 900); });
     $('fcSlider').oninput = e => { M.fcTouched = true; M.fcIdx = +e.target.value; drawGrid(); };
     $('radarSlider').oninput = e => showRadar(+e.target.value);
