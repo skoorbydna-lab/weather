@@ -28,7 +28,13 @@ function withConfig(env) {
   return e;
 }
 
-const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6 };
+const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6, agree: 2 };
+// models that vote on whether rain is coming (all have good UK detail)
+const ALERT_MODELS = [
+  { id: 'dmi_seamless',  name: 'DMI' },
+  { id: 'icon_seamless', name: 'ICON' },
+  { id: 'ukmo_seamless', name: 'Met Office' },
+];
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
@@ -104,41 +110,55 @@ async function check(env, force) {
   if (!loc) return { skipped: 'no location yet' };
 
   const u = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}` +
-    `&minutely_15=precipitation&forecast_minutely_15=6&past_minutely_15=1&timezone=auto`;
-  const r = await fetch(u);
+    `&minutely_15=precipitation&forecast_minutely_15=6&past_minutely_15=1&timezone=auto` +
+    `&models=${ALERT_MODELS.map(m => m.id).join(',')}`;
+  let r = await fetch(u);
+  if (r.status === 429) { await new Promise(res => setTimeout(res, 20000)); r = await fetch(u); }   // busy: one retry
   if (!r.ok) return { error: 'open-meteo ' + r.status };
   const d = await r.json();
   const off = d.utc_offset_seconds || 0, now = Date.now();
   const localHour = new Date(now + off * 1000).getUTCHours();
   if (!force && inQuiet(localHour, s.quietStart, s.quietEnd)) return { skipped: 'quiet hours' };
 
-  const m = d.minutely_15 || { time: [], precipitation: [] };
-  const slots = m.time
-    .map((t, i) => ({ t, ms: Date.parse(t + ':00Z') - off * 1000, p: m.precipitation[i] || 0 }))
+  // each model votes: does any 15-minute slot in the next hour reach the threshold?
+  const m = d.minutely_15 || { time: [] };
+  const inHour = m.time.map((t, i) => ({ t, i, ms: Date.parse(t + ':00Z') - off * 1000 }))
     .filter(x => x.ms + 15 * 60e3 > now && x.ms < now + 60 * 60e3);
-  const wet = slots.find(x => x.p >= s.thresh);
+  const votes = ALERT_MODELS.map(mod => {
+    const arr = m[`precipitation_${mod.id}`] || m.precipitation;
+    if (!arr) return null;
+    const vals = inHour.map(x => ({ ...x, p: arr[x.i] }));
+    if (vals.every(v => v.p == null)) return null;             // model has no data here
+    const wet = vals.find(v => (v.p || 0) >= s.thresh);
+    return { name: mod.name, wet: !!wet, first: wet, total: vals.reduce((a, v) => a + (v.p || 0), 0) };
+  }).filter(Boolean);
+  if (!votes.length) return { error: 'no model data' };
+  const need = Math.min(s.agree || 2, votes.length);
+  const yes = votes.filter(v => v.wet);
+  const summary = votes.map(v => `${v.name} ${v.wet ? 'rain' : 'dry'}`).join(', ');
 
-  if (!wet) {
+  if (yes.length < need) {
     if (st.raining) { st.raining = false; await putState(env, st); }
-    if (force) await notify(env, 'Dry for the next hour', 'No rain expected at your location in the next hour.', 'white_check_mark', 'default');
-    return { dry: true, slots };
+    if (force) await notify(env, 'Dry for the next hour', `No rain expected at your location in the next hour (${summary}).`, 'white_check_mark', 'default');
+    return { dry: true, models: summary };
   }
 
-  if (!force && (st.raining || now - (st.lastAlert || 0) < 45 * 60e3)) return { alreadyAlerted: true, slots };
+  if (!force && (st.raining || now - (st.lastAlert || 0) < 45 * 60e3)) return { alreadyAlerted: true, models: summary };
 
-  const total = slots.reduce((a, x) => a + x.p, 0);
-  const when = wet.ms <= now ? 'now' : 'from about ' + wet.t.slice(11, 16);
+  const first = yes.map(v => v.first).sort((a, b) => a.ms - b.ms)[Math.floor((yes.length - 1) / 2)];   // middle start time of the agreeing models
+  const total = yes.reduce((a, v) => a + v.total, 0) / yes.length;
+  const when = first.ms <= now ? 'now' : 'from about ' + first.t.slice(11, 16);
   let where = '';
   if (loc.source === 'home') where = ' (home)';
   else if (loc.ts) {
     const mins = Math.round((now - loc.ts) / 60000);
     where = mins < 2 ? '' : ` Location from ${mins < 90 ? mins + ' min' : Math.round(mins / 60) + ' h'} ago.`;
   }
-  await notify(env, 'Rain coming', `Rain ${when} - ${total.toFixed(1)} mm in the next hour.${where}`);
+  await notify(env, 'Rain coming', `Rain ${when} - about ${total.toFixed(1)} mm in the next hour (${yes.length} of ${votes.length} models agree).${where}`);
   st.raining = true;
   st.lastAlert = now;
   await putState(env, st);
-  return { alerted: true, when, total, slots };
+  return { alerted: true, when, total, agreeing: `${yes.length} of ${votes.length}`, models: summary };
 }
 
 export default {
@@ -183,6 +203,7 @@ export default {
       if (isFinite(+b.thresh) && +b.thresh > 0) s.thresh = +b.thresh;
       if (Number.isInteger(+b.quietStart) && +b.quietStart >= 0 && +b.quietStart < 24) s.quietStart = +b.quietStart;
       if (Number.isInteger(+b.quietEnd) && +b.quietEnd >= 0 && +b.quietEnd < 24) s.quietEnd = +b.quietEnd;
+      if ([1, 2, 3].includes(+b.agree)) s.agree = +b.agree;
       st.settings = s;
       await putState(env, st);
       return json({ ok: true, settings: s });

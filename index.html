@@ -223,6 +223,13 @@ footer a{color:inherit}
           <option value="1">moderate (1 mm)</option>
         </select> in 15 min
       </div>
+      <div class="row">Alert when
+        <select id="agree" class="btn sm">
+          <option value="1">any 1</option>
+          <option value="2">2 or more</option>
+          <option value="3">all 3</option>
+        </select> of DMI, ICON &amp; Met Office agree
+      </div>
       <div class="row">Quiet from
         <select id="qStart" class="btn sm"></select> to <select id="qEnd" class="btn sm"></select>
       </div>
@@ -355,7 +362,9 @@ const MODELS = [
   {id:'ecmwf_ifs025',         name:'ECMWF',        color:'#5eb3ff'},
   {id:'icon_seamless',        name:'DWD ICON',     color:'#34d399'},
   {id:'gfs_seamless',         name:'NOAA GFS',     color:'#c084fc'},
-  {id:'meteofrance_seamless', name:'Météo-France', color:'#facc15'}
+  {id:'meteofrance_seamless', name:'Météo-France', color:'#facc15'},
+  {id:'dmi_seamless',         name:'DMI HARMONIE', color:'#f472b6'},
+  {id:'ecmwf_aifs025_single', name:'ECMWF AI',     color:'#a3e635'}
 ];
 const API = 'https://api.open-meteo.com/v1/forecast';
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
@@ -995,7 +1004,7 @@ async function refreshSrv(){
     S.srvState = await srv('/status');
     const s = S.srvState.settings;
     $('srvOn').checked = s.enabled; $('alertThresh').value = String(s.thresh);
-    $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd);
+    $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd); $('agree').value = String(s.agree || 2);
     showSrvState();
   }catch(e){ S.srvState=null; showSrvState(`Can't reach alert server (${e.message})`, 'err'); $('alertLine').textContent='Phone alerts: server not reachable'; }
 }
@@ -1015,7 +1024,7 @@ function sendLocation(force){
 async function pushSettings(){
   if(!srvOK()) return;
   try{
-    const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value});
+    const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value});
     if(S.srvState) S.srvState.settings = r.settings;
     showSrvState('Saved ✓', 'okc');
   }catch(e){ showSrvState(`Couldn't save (${e.message})`, 'err'); }
@@ -1564,10 +1573,10 @@ $('srvTest').onclick = async () => {
   }catch(e){ showSrvState(`Couldn't reach your server: ${e.message}. Check the address (no /status on the end) and key.`, 'err'); }
 };
 $('srvCheck').onclick = async () => {
-  try{ const r = await srv('/check'); showSrvState(r.dry ? 'Checked: dry for the next hour (notification sent)' : r.alerted ? 'Checked: rain due – alert sent' : (r.skipped || r.error || 'Checked'), 'okc'); }
+  try{ const r = await srv('/check'); showSrvState(r.dry ? `Checked: dry for the next hour${r.models?' ('+r.models+')':''} – notification sent` : r.alerted ? `Checked: rain due (${r.agreeing} models agree) – alert sent` : (r.skipped || r.error || 'Checked'), 'okc'); }
   catch(e){ showSrvState(`Check failed (${e.message})`, 'err'); }
 };
-['srvOn','alertThresh','qStart','qEnd'].forEach(id => $(id).onchange = pushSettings);
+['srvOn','alertThresh','qStart','qEnd','agree'].forEach(id => $(id).onchange = pushSettings);
 $('shareLoc').onchange = e => { S.share = e.target.checked; store.set('share', S.share); if(S.share) sendLocation(true); };
 
 document.addEventListener('visibilitychange', () => {
