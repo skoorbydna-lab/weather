@@ -114,6 +114,11 @@ button,select,input{font:inherit;color:inherit}
 .hctl input[type=date]{flex:0 1 auto;padding:.3em .5em;color-scheme:dark}
 .hbox{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:.88rem;line-height:1.45}
 .hbox .hk{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
+.rcwrap{display:flex;align-items:stretch}
+.rcscroll{flex:1;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.rcscroll::-webkit-scrollbar{height:4px}.rcscroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
+.rckey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.75rem;margin-top:6px}
+.rckey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
 .chip{border:1px solid var(--line);border-radius:999px;padding:.2em .7em;background:none;font-size:.8rem;cursor:pointer;color:var(--muted)}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
@@ -255,6 +260,18 @@ footer a{color:inherit}
         <div class="windline" id="nowWind"></div>
         <div class="muted small" id="nowGust"></div>
       </div>
+    </div>
+  </section>
+
+  <section class="card fold" id="rcCard" data-fold="raincast">
+    <h2 class="foldhead"><span>Raincast</span><span class="small" id="rcHead" style="margin-left:auto;text-transform:none;letter-spacing:0;font-weight:700"></span><span class="chev">▾</span></h2>
+    <div class="foldbody">
+      <div class="rcwrap">
+        <svg id="rcAxis" width="30" height="150"></svg>
+        <div class="rcscroll" id="rcScroll"><svg id="rcChart" height="150"></svg></div>
+      </div>
+      <div class="rckey"><span><i style="background:#4ade80"></i>light</span><span><i style="background:#facc15"></i>moderate</span><span><i style="background:#f97316"></i>heavy</span><span><i style="background:#ef4444"></i>very heavy</span><span class="muted">mm per hour · swipe for 4 hours</span></div>
+      <div class="muted small" style="margin-top:4px">5-minute bars are smoothed from the 15-minute forecast (Best match), so the timing is good to about a quarter of an hour.</div>
     </div>
   </section>
 
@@ -491,7 +508,7 @@ async function load(force){
   const hourlyVars = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day,relative_humidity_2m,cloud_cover,uv_index';
   const modelParam = S.model==='best_match' ? '' : `&models=${S.model}`;
   const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
-    + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=12&forecast_days=14`
+    + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=19&forecast_days=14`
     + `&daily=sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant`;
   const cmpUrl = `${API}?${common}&models=${MODELS.map(m=>m.id).join(',')}&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m,apparent_temperature,cloud_cover,relative_humidity_2m,pressure_msl&forecast_days=14`;
   const notice = $('notice'); notice.hidden = true;
@@ -520,7 +537,7 @@ async function load(force){
   sendLocation();
 }
 
-function renderAll(){ renderClock(); renderNow(); renderDays(); renderRain(); renderHourly(); renderWindow(); renderCompare(); }
+function renderAll(){ renderClock(); renderNow(); renderRaincast(); renderDays(); renderRain(); renderHourly(); renderWindow(); renderCompare(); }
 
 function renderNow(){
   const c = S.main.current;
@@ -580,6 +597,72 @@ function applyTempTheme(t){
   document.querySelector('meta[name=theme-color]').content = bg;
 }
 
+// ---------- raincast: 5-minute bars for the next 4 hours ----------
+const RC_STOPS = [[0.1,[74,222,128]],[1,[163,230,53]],[2,[250,204,21]],[3.5,[249,115,22]],[5,[239,68,68]]];   // mm/h
+const RC_MAX = 6;   // fixed top of the scale (mm/h)
+function raincastBars(){
+  const m = S.main && S.main.minutely_15; if(!m) return [];
+  const Q = 15*60000, F = 5*60000, now = Date.now();
+  // each 15-min value is the rain in the 15 minutes BEFORE its time; turn into a rate (mm/h) at the slot centre
+  const slots = m.time.map((t,i) => { const end = toMs(t); return {start:end-Q, end, rate:(m.precipitation[i]||0)*4}; });
+  const rateAt = tms => {        // straight-line between neighbouring slot centres
+    const c = slots.map(s => (s.start+s.end)/2);
+    if(tms <= c[0]) return slots[0].rate;
+    for(let i=1;i<c.length;i++) if(tms <= c[i]){ const f = (tms-c[i-1])/(c[i]-c[i-1]); return slots[i-1].rate*(1-f) + slots[i].rate*f; }
+    return slots[slots.length-1].rate;
+  };
+  const bars = [];
+  slots.forEach(s => {
+    const subs = [0,1,2].map(k => ({start:s.start+k*F, end:s.start+(k+1)*F}));
+    const raw = subs.map(b => rateAt((b.start+b.end)/2)), mean = raw.reduce((a,b)=>a+b,0)/3;
+    subs.forEach((b,k) => { b.rate = s.rate<=0 ? 0 : mean>0 ? raw[k]*s.rate/mean : s.rate; });   // keep each 15-min total exact
+    bars.push(...subs);
+  });
+  const from = Math.floor(now/F)*F;
+  return bars.filter(b => b.end > from && b.start < from + 4*3600000);
+}
+function renderRaincast(){
+  const bars = raincastBars(), chart = $('rcChart'), axis = $('rcAxis'), box = $('rcScroll');
+  const H = 150, T = 10, B = 20, ph = H-T-B, y = v => H-B-Math.min(v,RC_MAX)/RC_MAX*ph;
+  // fixed scale on the left
+  let a = '';
+  for(let v=0; v<=RC_MAX; v+=2) a += `<text x="26" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${v}</text>`;
+  axis.innerHTML = a;
+  if(!bars.length){ chart.setAttribute('width', 200); chart.innerHTML = `<text x="10" y="70" font-size="11" fill="var(--muted)">No 15-minute data</text>`; $('rcHead').textContent=''; return; }
+  const visible = Math.max(200, box.clientWidth || 300), slot = visible/24, W = Math.round(slot*bars.length);
+  chart.setAttribute('width', W);
+  const fmt = ms => new Date(ms + OFFSET*1000).toISOString().slice(11,16);
+  let g = '';
+  for(let v=0; v<=RC_MAX; v+=2) g += `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" ${v? 'stroke-dasharray="2 4"' : ''}/>`;
+  bars.forEach((b,i) => {
+    const x = i*slot, mins = new Date(b.start + OFFSET*1000).getUTCMinutes();
+    if(mins % 15 === 0){
+      const hour = mins === 0;
+      g += `<line x1="${x}" x2="${x}" y1="${T}" y2="${H-B}" stroke="var(--line)" ${hour ? '' : 'stroke-dasharray="1 3"'}/>`
+         + `<text x="${x+2}" y="${H-6}" font-size="9" ${hour ? 'font-weight="800" fill="var(--ink)"' : 'fill="var(--muted)"'}>${fmt(b.start)}</text>`;
+    }
+    if(b.rate >= 0.05){
+      const top = y(b.rate), col = rgb(ramp(RC_STOPS, b.rate));
+      g += `<rect x="${x+1}" y="${top}" width="${Math.max(1, slot-2)}" height="${H-B-top}" rx="2" fill="${col}"/>`;
+      if(b.rate > RC_MAX) g += `<text x="${x+slot/2}" y="${T-1}" text-anchor="middle" font-size="9" fill="${col}">▲</text>`;
+    }
+  });
+  // now line
+  const t0 = bars[0].start, nx = (Date.now()-t0)/(5*60000)*slot;
+  g += `<line x1="${nx}" x2="${nx}" y1="${T}" y2="${H-B}" stroke="var(--ink)" stroke-width="1.5"/><text x="${nx+3}" y="${T+8}" font-size="9" font-weight="700" fill="var(--ink)">now</text>`;
+  chart.innerHTML = g;
+  // headline
+  const wet = bars.filter(b => b.rate >= 0.1), head = $('rcHead');
+  if(!wet.length) head.innerHTML = '<span style="color:var(--good)">Dry for the next 4 hours</span>';
+  else {
+    const first = wet[0], peak = wet.reduce((p,q)=>q.rate>p.rate?q:p), last = wet[wet.length-1];
+    const start = first.start <= Date.now() ? 'Raining now' : `Rain from ${fmt(first.start)}`;
+    const dryAfter = last.end < bars[bars.length-1].end ? `, dry by ${fmt(last.end)}` : '';
+    head.innerHTML = `<span style="color:${rgb(ramp(RC_STOPS, peak.rate))}">${start}${dryAfter} · peak ${peak.rate.toFixed(1)} mm/h</span>`;
+  }
+}
+window.addEventListener('resize', () => { if(S.main) renderRaincast(); });
+
 // ---------- clock + sunrise/sunset ----------
 function renderClock(){
   const now = new Date();
@@ -591,7 +674,7 @@ function renderClock(){
     $('cSun').innerHTML = `<span title="Sunrise">☀️↑ ${hhmm(d.sunrise[i])}</span> · <span title="Sunset">↓ ${hhmm(d.sunset[i])}</span>`;
   }
 }
-setInterval(renderClock, 20000);
+setInterval(() => { renderClock(); if(S.main && !$('rcCard').classList.contains('closed')) renderRaincast(); }, 20000);
 renderClock();
 
 // ---------- 14-day outlook ----------
@@ -1589,13 +1672,14 @@ $('modelSel').value = S.model;
 $('modelSel').onchange = e => { S.model = e.target.value; store.set('model', S.model); load(); };
 
 // ---------- collapsible sections ----------
-const FOLD = Object.assign({models:true, table:false, hourly:true, map:true, hist:false, ride:true}, store.get('fold', {}));
+const FOLD = Object.assign({raincast:true, models:true, table:false, hourly:true, map:true, hist:false, ride:true}, store.get('fold', {}));
 function setFold(el, open){
   el.classList.toggle('closed', !open);
   FOLD[el.dataset.fold] = open; store.set('fold', FOLD);
   if(el.dataset.fold==='map'){ M.visible = open; if(open) showMap(); else windStop(); }
   if(el.dataset.fold==='models' && open && CMP) drawCompareCharts();
   if(el.dataset.fold==='hist' && open && !H.last) loadHistory();
+  if(el.dataset.fold==='raincast' && open && S.main) renderRaincast();
 }
 document.querySelectorAll('[data-fold]').forEach(el => {
   const head = el.querySelector(':scope > .foldhead');
