@@ -393,6 +393,7 @@ const MODELS = [
   {id:'ecmwf_aifs025_single', name:'ECMWF AI',     color:'#a3e635'}
 ];
 const API = 'https://api.open-meteo.com/v1/forecast';
+const RAIN_MODELS = ['dmi_seamless','icon_seamless','ukmo_seamless'];   // rain needs 2 of these 3 to agree
 const GEO = 'https://geocoding-api.open-meteo.com/v1/search';
 
 const store = {
@@ -512,11 +513,14 @@ async function load(force){
   const notice = $('notice'); notice.hidden = true;
   clearTimeout(S.retry);
   try{
-    const [main, cmp] = await Promise.all([
+    const rcUrl = `${API}?${common}&minutely_15=precipitation&forecast_minutely_15=19&models=${RAIN_MODELS.join(',')}`;
+    const [main, cmp, rc] = await Promise.all([
       cachedJSON(mainUrl, force ? 0 : 10*60000),
-      cachedJSON(cmpUrl, force ? 5*60000 : 30*60000).catch(e=>({error:e.message}))
+      cachedJSON(cmpUrl, force ? 5*60000 : 30*60000).catch(e=>({error:e.message})),
+      cachedJSON(rcUrl, force ? 0 : 10*60000).catch(e=>null)
     ]);
     S.main = main.data; S.cmp = cmp.error ? cmp : cmp.data; OFFSET = S.main.utc_offset_seconds || 0;
+    S.rain15 = rc ? agreeRain15(rc.data) : null;
     renderAll();
     $('updated').textContent = 'updated ' + new Date(main.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
@@ -563,8 +567,21 @@ function drawCompass(dir, mph){
   $('compass').innerHTML = s;
 }
 
+// 15-minute rain where at least 2 of DMI, ICON and the Met Office agree (middle value) – same rule as the alerts
+function agreeRain15(d){
+  const m = d && d.minutely_15; if(!m || !m.time) return null;
+  const arrs = RAIN_MODELS.map(id => m[`precipitation_${id}`]).filter(Boolean);
+  if(!arrs.length) return null;
+  const precipitation = m.time.map((_,i) => {
+    const v = arrs.map(a=>a[i]).filter(x=>x!=null).sort((a,b)=>a-b);
+    return !v.length ? null : v.length===3 ? v[1] : v[0];
+  });
+  return {time:m.time, precipitation};
+}
+const rain15 = () => S.rain15 || (S.main && S.main.minutely_15);
+
 function nextSlots(){
-  const m = S.main.minutely_15; if(!m) return [];
+  const m = rain15(); if(!m) return [];
   const now = Date.now(), out = [];
   for(let i=0;i<m.time.length;i++){ const t = toMs(m.time[i]); if(t + 15*60000 > now) out.push({t:m.time[i], ms:t, p:m.precipitation[i]}); }
   return out.slice(0,8);
@@ -599,7 +616,7 @@ function applyTempTheme(t){
 const RC_STOPS = [[0.1,[74,222,128]],[1,[163,230,53]],[2,[250,204,21]],[3.5,[249,115,22]],[5,[239,68,68]]];   // mm/h
 const RC_MAX = 6;   // fixed top of the scale (mm/h)
 function raincastBars(){
-  const m = S.main && S.main.minutely_15; if(!m) return [];
+  const m = rain15(); if(!m) return [];
   const Q = 15*60000, F = 5*60000, now = Date.now();
   // each 15-min value is the rain in the 15 minutes BEFORE its time; turn into a rate (mm/h) at the slot centre
   const slots = m.time.map((t,i) => { const end = toMs(t); return {start:end-Q, end, rate:(m.precipitation[i]||0)*4}; });
@@ -1420,7 +1437,6 @@ function showRadar(i){
 }
 
 // --- rain on the map: middle value of DMI, ICON and Met Office = shows only where at least 2 of 3 agree ---
-const RAIN_MODELS = ['dmi_seamless','icon_seamless','ukmo_seamless'];
 async function loadRainAgree(){
   const g = M.grid; if(!g || g.rainAgree || g.rainLoading) return;
   g.rainLoading = true;
