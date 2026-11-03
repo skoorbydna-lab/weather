@@ -114,7 +114,7 @@ button,select,input{font:inherit;color:inherit}
 .hctl input[type=date]{flex:0 1 auto;padding:.3em .5em;color-scheme:dark}
 .hbox{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:.88rem;line-height:1.45}
 .hbox .hk{font-size:.75rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
-.rcwrap{display:flex;align-items:stretch}
+.rcwrap{display:flex;align-items:stretch;background:rgba(255,255,255,.07);border-radius:10px;padding:4px 4px 0 0}
 .rcscroll{flex:1;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
 .rcscroll::-webkit-scrollbar{height:4px}.rcscroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
 .rckey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.75rem;margin-top:6px}
@@ -270,8 +270,6 @@ footer a{color:inherit}
         <svg id="rcAxis" width="30" height="150"></svg>
         <div class="rcscroll" id="rcScroll"><svg id="rcChart" height="150"></svg></div>
       </div>
-      <div class="rckey"><span><i style="background:#4ade80"></i>light</span><span><i style="background:#facc15"></i>moderate</span><span><i style="background:#f97316"></i>heavy</span><span><i style="background:#ef4444"></i>very heavy</span><span class="muted">mm per hour · swipe for 4 hours</span></div>
-      <div class="muted small" style="margin-top:4px">5-minute bars are smoothed from the 15-minute forecast (Best match), so the timing is good to about a quarter of an hour.</div>
     </div>
   </section>
 
