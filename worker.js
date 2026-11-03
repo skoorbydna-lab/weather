@@ -28,7 +28,7 @@ function withConfig(env) {
   return e;
 }
 
-const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6, agree: 2 };
+const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6, agree: 2, summary: true, summaryHour: 7 };
 // models that vote on whether rain is coming (all have good UK detail)
 const ALERT_MODELS = [
   { id: 'dmi_seamless',  name: 'DMI' },
@@ -98,6 +98,94 @@ async function ntfy(env, title, body, tags, priority) {
   } catch (e) {
     return { ok: false, service: 'ntfy', topic: env.NTFY_TOPIC, error: String(e) };
   }
+}
+
+// ---------- morning summary ----------
+const COMPASS = ['N','NE','E','SE','S','SW','W','NW'];
+const dirName = d => d == null ? '' : COMPASS[Math.round((d % 360) / 45) % 8];
+const WORDS = {0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Cloudy',45:'Fog',48:'Fog',51:'Drizzle',53:'Drizzle',55:'Drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',
+  71:'Light snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorms',96:'Thunderstorms',99:'Thunderstorms'};
+
+async function getLoc(env, st){
+  if (st.loc) return st.loc;
+  if (env.HOME_LAT && env.HOME_LON) return { lat: +env.HOME_LAT, lon: +env.HOME_LON, ts: 0, source: 'home' };
+  return null;
+}
+
+async function summary(env, force) {
+  const st = await getState(env);
+  const s = { ...DEFAULTS, ...(st.settings || {}) };
+  if (!s.summary && !force) return { skipped: 'summary off' };
+  const loc = await getLoc(env, st);
+  if (!loc) return { skipped: 'no location yet' };
+  const u = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&timezone=auto&wind_speed_unit=mph&forecast_days=1` +
+    `&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,cloud_cover,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day` +
+    `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset`;
+  let r = await fetch(u);
+  if (r.status === 429) { await new Promise(res => setTimeout(res, 20000)); r = await fetch(u); }
+  if (!r.ok) return { error: 'open-meteo ' + r.status };
+  const d = await r.json(), off = d.utc_offset_seconds || 0;
+  const today = new Date(Date.now() + off * 1000).toISOString().slice(0, 10);
+  if (!force && st.lastSummary === today) return { skipped: 'already sent today' };
+  const h = d.hourly, day = [];
+  h.time.forEach((t, i) => { const hr = +t.slice(11, 13); if (hr >= 7 && hr <= 19) day.push(i); });
+  const max = d.daily.temperature_2m_max[0], min = d.daily.temperature_2m_min[0];
+  const rainDay = day.reduce((a, i) => a + (h.precipitation[i] || 0), 0);
+  const wetHrs = day.filter(i => (h.precipitation[i] || 0) >= 0.2).map(i => +h.time[i].slice(11, 13));
+  const pmax = d.daily.precipitation_probability_max ? d.daily.precipitation_probability_max[0] : null;
+  const wMax = Math.max(...day.map(i => h.wind_speed_10m[i] || 0)), gMax = Math.max(...day.map(i => h.wind_gusts_10m[i] || 0));
+  const dirs = day.map(i => h.wind_direction_10m[i]).filter(v => v != null);
+  const sx = dirs.reduce((a, v) => a + Math.sin(v * Math.PI / 180), 0), cx = dirs.reduce((a, v) => a + Math.cos(v * Math.PI / 180), 0);
+  const mainDir = dirs.length ? dirName((Math.atan2(sx, cx) * 180 / Math.PI + 360) % 360) : '';
+  const cc = day.map(i => h.cloud_cover[i]).filter(v => v != null), ccAvg = cc.length ? cc.reduce((a, b) => a + b, 0) / cc.length : null;
+  let look;
+  if (wetHrs.length >= 3 || rainDay >= 1) look = wetHrs.length >= 7 ? 'Wet day' : 'Showers';
+  else look = ccAvg == null ? 'Dry' : ccAvg < 15 ? 'Sunny' : ccAvg < 40 ? 'Mostly sunny' : ccAvg < 75 ? 'Sunny spells' : 'Cloudy, dry';
+  // rain timing
+  let rainTxt = 'Dry';
+  if (rainDay >= 0.2) {
+    const span = wetHrs.length ? `mainly ${String(wetHrs[0]).padStart(2,'0')}–${String(wetHrs[wetHrs.length-1]+1).padStart(2,'0')}` : 'light';
+    rainTxt = `${rainDay.toFixed(1)} mm, ${span}`;
+  }
+  // best 2-hour daylight ride window (same idea as the app's rating)
+  const score = i => {
+    const p = h.precipitation[i] || 0, pp = h.precipitation_probability ? h.precipitation_probability[i] : null;
+    const w = h.wind_speed_10m[i] || 0, g = h.wind_gusts_10m[i] || 0, t = h.apparent_temperature[i] ?? h.temperature_2m[i];
+    let sc = p * 3 + (pp != null ? pp * 0.02 : (p > 0 ? 1 : 0)) + Math.max(0, w - 8) * 0.25 + Math.max(0, g - 22) * 0.15;
+    if (t != null && t < 3) sc += (3 - t) * 0.4;
+    if (h.is_day && h.is_day[i] === 0) sc += 3;
+    return sc;
+  };
+  let best = null;
+  for (let k = 0; k + 1 < h.time.length; k++) {
+    if (h.is_day && (h.is_day[k] === 0 || h.is_day[k + 1] === 0)) continue;
+    const v = (score(k) + score(k + 1)) / 2;
+    if (!best || v < best.v) best = { k, v };
+  }
+  const ride = best ? `${h.time[best.k].slice(11, 16)}–${String(+h.time[best.k].slice(11, 13) + 2).padStart(2, '0')}:00` : '–';
+  const sun = `${d.daily.sunrise[0].slice(11, 16)}–${d.daily.sunset[0].slice(11, 16)}`;
+  const body = [
+    `${look}, ${Math.round(max)}° / ${Math.round(min)}°`,
+    `Rain: ${rainTxt}${pmax != null ? ` (${pmax}% chance)` : ''}`,
+    `Wind: ${Math.round(wMax)} mph ${mainDir}, gusts ${Math.round(gMax)}`,
+    `Best ride: ${ride}`,
+    `Daylight: ${sun}`,
+  ].join('\n');
+  const sent = await notify(env, `Today's ride weather`, body, 'sunrise', 'default');
+  if (!force) { st.lastSummary = today; await putState(env, st); }
+  return { sent: sent.ok, body };
+}
+
+async function maybeSummary(env) {
+  const st = await getState(env);
+  const s = { ...DEFAULTS, ...(st.settings || {}) };
+  if (!s.summary) return;
+  // the forecast's own timezone decides "7 am"; cheap check first using London time
+  const london = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/London' }));
+  if (london.getHours() !== s.summaryHour) return;
+  const today = london.toLocaleDateString('en-CA');
+  if (st.lastSummary === today) return;
+  await summary(env, false);
 }
 
 async function check(env, force) {
@@ -204,6 +292,8 @@ export default {
       if (Number.isInteger(+b.quietStart) && +b.quietStart >= 0 && +b.quietStart < 24) s.quietStart = +b.quietStart;
       if (Number.isInteger(+b.quietEnd) && +b.quietEnd >= 0 && +b.quietEnd < 24) s.quietEnd = +b.quietEnd;
       if ([1, 2, 3].includes(+b.agree)) s.agree = +b.agree;
+      if (typeof b.summary === 'boolean') s.summary = b.summary;
+      if (Number.isInteger(+b.summaryHour) && +b.summaryHour >= 4 && +b.summaryHour <= 11) s.summaryHour = +b.summaryHour;
       st.settings = s;
       await putState(env, st);
       return json({ ok: true, settings: s });
@@ -220,12 +310,13 @@ export default {
     }
 
     if (path === '/check') return json(await check(env, true));
+    if (path === '/summary') return json(await summary(env, true));
 
     return json({ error: 'not found' }, 404);
   },
 
   async scheduled(event, env, ctx) {
     env = withConfig(env);
-    ctx.waitUntil(check(env, false));
+    ctx.waitUntil(Promise.all([check(env, false), maybeSummary(env)]));
   },
 };

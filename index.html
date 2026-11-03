@@ -230,6 +230,10 @@ footer a{color:inherit}
           <option value="3">all 3</option>
         </select> of DMI, ICON &amp; Met Office agree
       </div>
+      <div class="row"><label class="switch"><input type="checkbox" id="sumOn"> Morning summary at</label>
+        <select id="sumHour" class="btn sm"><option value="5">05:00</option><option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option><option value="10">10:00</option></select>
+        <button class="btn sm" id="sumNow">Send one now</button>
+      </div>
       <div class="row">Quiet from
         <select id="qStart" class="btn sm"></select> to <select id="qEnd" class="btn sm"></select>
       </div>
@@ -1011,7 +1015,7 @@ async function refreshSrv(){
     S.srvState = await srv('/status');
     const s = S.srvState.settings;
     $('srvOn').checked = s.enabled; $('alertThresh').value = String(s.thresh);
-    $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd); $('agree').value = String(s.agree || 2);
+    $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd); $('agree').value = String(s.agree || 2); $('sumOn').checked = s.summary !== false; $('sumHour').value = String(s.summaryHour || 7);
     showSrvState();
   }catch(e){ S.srvState=null; showSrvState(`Can't reach alert server (${e.message})`, 'err'); $('alertLine').textContent='Phone alerts: server not reachable'; }
 }
@@ -1031,7 +1035,7 @@ function sendLocation(force){
 async function pushSettings(){
   if(!srvOK()) return;
   try{
-    const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value});
+    const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value, summary:$('sumOn').checked, summaryHour:+$('sumHour').value});
     if(S.srvState) S.srvState.settings = r.settings;
     showSrvState('Saved ✓', 'okc');
   }catch(e){ showSrvState(`Couldn't save (${e.message})`, 'err'); }
@@ -1625,7 +1629,8 @@ $('srvCheck').onclick = async () => {
   try{ const r = await srv('/check'); showSrvState(r.dry ? `Checked: dry for the next hour${r.models?' ('+r.models+')':''} – notification sent` : r.alerted ? `Checked: rain due (${r.agreeing} models agree) – alert sent` : (r.skipped || r.error || 'Checked'), 'okc'); }
   catch(e){ showSrvState(`Check failed (${e.message})`, 'err'); }
 };
-['srvOn','alertThresh','qStart','qEnd','agree'].forEach(id => $(id).onchange = pushSettings);
+['srvOn','alertThresh','qStart','qEnd','agree','sumOn','sumHour'].forEach(id => $(id).onchange = pushSettings);
+$('sumNow').onclick = async () => { showSrvState('Sending summary…'); try{ const r = await srv('/summary'); showSrvState(r.sent ? 'Summary sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
 $('shareLoc').onchange = e => { S.share = e.target.checked; store.set('share', S.share); if(S.share) sendLocation(true); };
 
 document.addEventListener('visibilitychange', () => {
