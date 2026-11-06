@@ -22,8 +22,9 @@
 html{font-size:15px}
 html.fs-s{font-size:13px} html.fs-l{font-size:17.5px} html.fs-xl{font-size:20px}
 *{box-sizing:border-box}
+html,body{overflow-x:hidden}
 body{transition:background-color .8s;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:1rem}
-.wrap{max-width:760px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
+.wrap{overflow-x:clip;max-width:760px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left))}
 header{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .clock{text-align:right;flex:0 0 auto;line-height:1.2}
 .cdate{font-size:.78rem;color:var(--muted);font-weight:600}
@@ -57,12 +58,12 @@ button,select,input{font:inherit;color:inherit}
 .card h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
 .muted{color:var(--muted)}
 .small{font-size:.82rem}
-.now{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
-.nowWind{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:7.5rem}
+.now{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.nowWind{display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0;max-width:44vw}
 .nowWind .compass{width:4.6rem;height:4.6rem}
 .nowWind .windline{font-size:1rem;margin-top:4px}
 .bigicon{line-height:0}
-.bigicon svg{width:5.4rem;height:5.4rem;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))}
+.bigicon svg{width:clamp(3.6rem,20vw,5.4rem);height:clamp(3.6rem,20vw,5.4rem);filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))}
 .days{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px;-webkit-overflow-scrolling:touch}
 .days::-webkit-scrollbar{height:4px}.days::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
 .day{flex:0 0 5.4rem;scroll-snap-align:start;border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center;background:var(--bg);cursor:pointer;font-size:.85rem;line-height:1.35}
@@ -70,7 +71,7 @@ button,select,input{font:inherit;color:inherit}
 .day .dn{font-weight:700}.day .ic{line-height:0;margin:2px 0}
 .day .hi{font-weight:700;font-size:1rem}
 .compass{width:7rem;height:7rem}
-.bigtemp{font-size:3.4rem;font-weight:700;line-height:1}
+.bigtemp{font-size:clamp(2.2rem,13vw,3.4rem);font-weight:700;line-height:1}
 .windline{font-size:1.25rem;font-weight:600;margin-top:6px}
 .banner{border-radius:12px;padding:10px 12px;margin-bottom:12px;font-weight:600;display:none}
 .banner.wet{display:block;background:#1d4ed8;color:#eff6ff}
@@ -145,13 +146,15 @@ footer a{color:inherit}
 #mapLegend .bar{height:9px;border-radius:5px}
 #mapLegend .ticks{position:relative;height:1.1em;margin-top:2px}
 #mapLegend .ticks span{position:absolute;transform:translateX(-50%);white-space:nowrap}
-#map{height:62vh;min-height:360px;border-radius:12px;overflow:hidden;background:#0a1a3a}
+#map{position:relative;height:55vh;min-height:340px;border-radius:12px;overflow:hidden;background:#0a1a3a}
 .leaflet-container{font:inherit}
 .leaflet-control-attribution{font-size:9px;background:rgba(10,26,58,.75)!important;color:#9fb3dc}
 .leaflet-control-attribution a{color:#cfe0ff}
 .mpt{display:flex;flex-direction:column;align-items:center;pointer-events:none;text-shadow:0 1px 2px #000,0 0 3px #000}
 .mpt .t{font-size:11px;font-weight:700;color:#fff;padding:0 3px;border-radius:4px;line-height:15px}
 .mpt .w{font-size:10px;font-weight:700;color:#fff}
+.maplock{position:absolute;inset:auto 0 12px 0;margin:auto;width:max-content;z-index:800;background:rgba(9,22,52,.85);color:#fff;font-size:.8rem;font-weight:700;padding:6px 12px;border-radius:999px;pointer-events:none;transition:opacity .3s}
+.maplockbtn{position:absolute;top:10px;right:10px;z-index:800;border:0;border-radius:8px;background:rgba(9,22,52,.85);color:#fff;font-size:.8rem;font-weight:700;padding:6px 10px;cursor:pointer}
 .layers{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .layers label{display:flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:.2em .6em;font-size:.82rem;cursor:pointer}
 .slider{display:flex;align-items:center;gap:8px;margin-top:8px}
@@ -1395,11 +1398,31 @@ function setBaseMap(name){
   }
 }
 
+// on touch screens the map ignores swipes (so the page scrolls) until you tap it
+function setupMapLock(){
+  const touch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+  if(!touch) return;
+  const el = $('map');
+  const hint = document.createElement('div'); hint.className = 'maplock'; hint.textContent = 'Tap the map to move or zoom it';
+  const btn = document.createElement('button'); btn.className = 'maplockbtn'; btn.type = 'button'; btn.textContent = '🔒 Lock map'; btn.hidden = true;
+  el.appendChild(hint); el.appendChild(btn);
+  const handlers = ['dragging','touchZoom','doubleClickZoom','boxZoom','keyboard','scrollWheelZoom'];
+  const lock = () => { handlers.forEach(h => M.map[h] && M.map[h].disable()); el.style.touchAction = 'pan-y'; hint.style.opacity = 1; btn.hidden = true; M.unlocked = false; };
+  const unlock = () => { handlers.forEach(h => M.map[h] && M.map[h].enable()); el.style.touchAction = ''; hint.style.opacity = 0; btn.hidden = false; M.unlocked = true; };
+  lock();
+  M.map.on('click', () => { if(!M.unlocked) unlock(); });
+  btn.addEventListener('click', e => { e.stopPropagation(); lock(); });
+  L.DomEvent.disableClickPropagation(btn);
+  // re-lock when the map scrolls out of view
+  if('IntersectionObserver' in window) new IntersectionObserver(es => es.forEach(en => { if(!en.isIntersecting && M.unlocked) lock(); })).observe(el);
+}
+
 function showMap(){
   if(typeof L==='undefined'){ $('mapStatus').innerHTML='<span class="err">map library failed to load</span>'; return; }
   M.visible = true;
   if(!M.map){
     M.map = L.map('map', {zoomControl:true, attributionControl:true}).setView([S.loc.lat, S.loc.lon], 8);
+    setupMapLock();
     setBaseMap(store.get('mapStyle','light'));
     M.map.createPane('fields'); M.map.getPane('fields').style.zIndex = 350;
     M.map.createPane('radar');  M.map.getPane('radar').style.zIndex = 360;
