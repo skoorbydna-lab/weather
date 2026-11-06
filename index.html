@@ -134,6 +134,15 @@ footer a{color:inherit}
 .err{color:var(--bad)} .okc{color:var(--good)}
 .scroll{overflow-x:auto}
 .stack>*+*{margin-top:8px}
+.warn{border-radius:18px;padding:12px 14px;margin-bottom:12px;color:#1a1300;box-shadow:0 10px 26px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.4)}
+.warn.yellow{background:linear-gradient(135deg,#ffe15a,#f5c400)}
+.warn.amber{background:linear-gradient(135deg,#ffb347,#f08a00)}
+.warn.red{background:linear-gradient(135deg,#ff6b6b,#d81b1b);color:#fff}
+.warn .wt{font-weight:800;font-size:.95rem;display:flex;gap:8px;align-items:flex-start}
+.warn .wd{font-size:.82rem;margin-top:4px;line-height:1.4;opacity:.92}
+.warn .wd.short{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.warn a{color:inherit;font-weight:700;font-size:.8rem}
+.warnok{font-size:.78rem;color:var(--muted);margin:-4px 0 10px 4px;text-shadow:0 1px 6px rgba(0,0,0,.5)}
 .notice{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 12px;margin-bottom:12px;font-size:.82rem;color:var(--muted)}
 .notice b{color:var(--ink)}
 .foldhead{cursor:pointer;user-select:none;-webkit-user-select:none}
@@ -224,6 +233,7 @@ body{font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-w
 #map{border-radius:16px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
 .subhead{border-top-color:rgba(255,255,255,.10)}
 footer{text-shadow:0 1px 6px rgba(0,0,0,.4)}
+header{background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03)),rgba(12,22,46,.45);-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:12px;box-shadow:0 12px 32px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.18);margin-bottom:12px}
 @media (prefers-reduced-motion: reduce){ #skyfx{display:none} }
 </style>
 </head>
@@ -303,6 +313,9 @@ footer{text-shadow:0 1px 6px rgba(0,0,0,.4)}
         <select id="eveHour" class="btn sm"><option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option><option value="21">21:00</option><option value="22">22:00</option></select>
         <button class="btn sm" id="eveNow">Send one now</button>
       </div>
+      <div class="row"><label class="switch"><input type="checkbox" id="warnOn"> Met Office warning alerts for</label>
+        <select id="warnRegion" class="btn sm"><option value="auto">Auto (from location)</option><option value="os">Orkney & Shetland</option><option value="he">Highlands & Eilean Siar</option><option value="gr">Grampian</option><option value="ta">Central, Tayside & Fife</option><option value="st">Strathclyde</option><option value="dg">SW Scotland, Lothian & Borders</option><option value="ni">Northern Ireland</option><option value="ne">North East England</option><option value="nw">North West England</option><option value="yh">Yorkshire & Humber</option><option value="wm">West Midlands</option><option value="em">East Midlands</option><option value="ee">East of England</option><option value="wl">Wales</option><option value="sw">South West England</option><option value="se">London & South East England</option></select>
+      </div>
       <div class="row">Quiet from
         <select id="qStart" class="btn sm"></select> to <select id="qEnd" class="btn sm"></select>
       </div>
@@ -311,6 +324,7 @@ footer{text-shadow:0 1px 6px rgba(0,0,0,.4)}
   </section>
 
   <div class="notice" id="notice" hidden></div>
+  <div id="warnBox"></div>
 
   <section class="card">
     <h2><span>Now</span><span class="small" id="updated"></span></h2>
@@ -604,6 +618,7 @@ async function load(force){
   clearTimeout(S.timer);
   S.timer = setTimeout(load, 15*60*1000);
   sendLocation();
+  loadWarnings();
 }
 
 function renderAll(){ renderClock(); renderNow(); renderRaincast(); renderDays(); renderRain(); renderHourly(); renderWindow(); renderCompare(); }
@@ -901,6 +916,25 @@ function renderRaincast(){
   }
 }
 window.addEventListener('resize', () => { if(S.main) renderRaincast(); });
+
+// ---------- Met Office warnings (fetched through your alert server) ----------
+async function loadWarnings(){
+  const box = $('warnBox');
+  if(!srvOK()){ box.innerHTML = ''; return; }
+  try{
+    const r = await srv('/warnings');
+    if(!r.ok) throw new Error(r.error);
+    const esc = t => (t||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    box.innerHTML = r.warnings.length ? r.warnings.map((w,i) => `
+      <div class="warn ${w.level}">
+        <div class="wt"><span>⚠️</span><span>${esc(w.title)}</span></div>
+        <div class="wd short" id="wd${i}">${esc(w.description)}</div>
+        <div class="row between" style="margin-top:6px"><button class="btn sm" style="background:rgba(0,0,0,.12);border:0;color:inherit" onclick="this.closest('.warn').querySelector('.wd').classList.toggle('short')">More / less</button>
+        <a href="${esc(w.link)}" target="_blank" rel="noopener">Met Office details ›</a></div>
+      </div>`).join('')
+      : `<div class="warnok">✓ No Met Office warnings · ${esc(r.regionName)}</div>`;
+  }catch(e){ box.innerHTML = ''; }
+}
 
 // ---------- clock + sunrise/sunset ----------
 function renderClock(){
@@ -1351,7 +1385,7 @@ async function refreshSrv(){
     S.srvState = await srv('/status');
     const s = S.srvState.settings;
     $('srvOn').checked = s.enabled; $('alertThresh').value = String(s.thresh);
-    $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd); $('agree').value = String(s.agree || 2); $('sumOn').checked = s.summary !== false; $('sumHour').value = String(s.summaryHour || 7); $('eveOn').checked = s.evening !== false; $('eveHour').value = String(s.eveningHour || 17);
+    $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd); $('agree').value = String(s.agree || 2); $('sumOn').checked = s.summary !== false; $('sumHour').value = String(s.summaryHour || 7); $('eveOn').checked = s.evening !== false; $('eveHour').value = String(s.eveningHour || 17); $('warnOn').checked = s.warnAlerts !== false; $('warnRegion').value = s.warnRegion || 'auto';
     showSrvState();
   }catch(e){ S.srvState=null; showSrvState(`Can't reach alert server (${e.message})`, 'err'); $('alertLine').textContent='Phone alerts: server not reachable'; }
 }
@@ -1371,7 +1405,7 @@ function sendLocation(force){
 async function pushSettings(){
   if(!srvOK()) return;
   try{
-    const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value, summary:$('sumOn').checked, summaryHour:+$('sumHour').value, evening:$('eveOn').checked, eveningHour:+$('eveHour').value});
+    const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value, summary:$('sumOn').checked, summaryHour:+$('sumHour').value, evening:$('eveOn').checked, eveningHour:+$('eveHour').value, warnAlerts:$('warnOn').checked, warnRegion:$('warnRegion').value});
     if(S.srvState) S.srvState.settings = r.settings;
     showSrvState('Saved ✓', 'okc');
   }catch(e){ showSrvState(`Couldn't save (${e.message})`, 'err'); }
@@ -1985,7 +2019,8 @@ $('srvCheck').onclick = async () => {
   try{ const r = await srv('/check'); showSrvState(r.dry ? `Checked: dry for the next hour${r.models?' ('+r.models+')':''} – notification sent` : r.alerted ? `Checked: rain due (${r.agreeing} models agree) – alert sent` : (r.skipped || r.error || 'Checked'), 'okc'); }
   catch(e){ showSrvState(`Check failed (${e.message})`, 'err'); }
 };
-['srvOn','alertThresh','qStart','qEnd','agree','sumOn','sumHour','eveOn','eveHour'].forEach(id => $(id).onchange = pushSettings);
+['srvOn','alertThresh','qStart','qEnd','agree','sumOn','sumHour','eveOn','eveHour','warnOn'].forEach(id => $(id).onchange = pushSettings);
+$('warnRegion').onchange = async () => { await pushSettings(); loadWarnings(); };
 $('eveNow').onclick = async () => { showSrvState('Sending evening update…'); try{ const r = await srv('/summary?kind=evening'); showSrvState(r.sent ? 'Evening update sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
 $('sumNow').onclick = async () => { showSrvState('Sending summary…'); try{ const r = await srv('/summary'); showSrvState(r.sent ? 'Summary sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
 $('shareLoc').onchange = e => { S.share = e.target.checked; store.set('share', S.share); if(S.share) sendLocation(true); };

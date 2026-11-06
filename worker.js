@@ -28,8 +28,8 @@ function withConfig(env) {
   return e;
 }
 
-const VERSION = '2026-11-06c';
-const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6, agree: 2, summary: true, summaryHour: 7, evening: true, eveningHour: 17 };
+const VERSION = '2026-11-06d';
+const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6, agree: 2, summary: true, summaryHour: 7, evening: true, eveningHour: 17, warnAlerts: true, warnRegion: 'auto' };
 // models that vote on whether rain is coming (all have good UK detail)
 const ALERT_MODELS = [
   { id: 'dmi_seamless',  name: 'DMI' },
@@ -89,7 +89,7 @@ async function pushover(env, title, message, priority) {
 
 async function ntfy(env, title, body, tags, priority) {
   if (!env.NTFY_TOPIC) return { ok: false, error: 'No alert service set: fill in PUSHOVER_USER and PUSHOVER_TOKEN' };
-  const headers = { Title: title, Tags: tags, Priority: priority };
+  const headers = { Title: title.replace(/[^\x20-\x7E]/g, '').trim(), Tags: tags, Priority: priority };
   if (env.APP_URL) headers.Click = env.APP_URL;
   if (env.NTFY_TOKEN) headers.Authorization = 'Bearer ' + env.NTFY_TOKEN;
   try {
@@ -232,6 +232,53 @@ async function maybeSummary(env) {
   await putState(env, st2);
 }
 
+// ---------- Met Office severe weather warnings (public RSS, one feed per region) ----------
+const REGIONS = {
+  os:['Orkney & Shetland',59.5,-2.0], he:['Highlands & Eilean Siar',57.5,-5.0], gr:['Grampian',57.2,-2.8],
+  ta:['Central, Tayside & Fife',56.4,-3.6], st:['Strathclyde',55.8,-4.8], dg:['SW Scotland, Lothian & Borders',55.4,-3.2],
+  ni:['Northern Ireland',54.6,-6.7], ne:['North East England',54.9,-1.8], nw:['North West England',54.0,-2.8],
+  yh:['Yorkshire & Humber',53.9,-1.2], wm:['West Midlands',52.5,-2.2], em:['East Midlands',52.9,-1.0],
+  ee:['East of England',52.3,0.6], wl:['Wales',52.3,-3.7], sw:['South West England',50.9,-3.6], se:['London & South East England',51.3,-0.5],
+};
+function nearestRegion(lat, lon){
+  let best = 'se', bd = 1e9;
+  for (const [k, [, a, b]] of Object.entries(REGIONS)) { const d = (lat-a)**2 + ((lon-b)*Math.cos(lat*Math.PI/180))**2; if (d < bd) { bd = d; best = k; } }
+  return best;
+}
+const unxml = t => (t || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/<[^>]+>/g, ' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/\s+/g,' ').trim();
+async function getWarnings(region){
+  const url = `https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/${region}`;
+  const r = await fetch(url, { headers: { 'User-Agent': 'RideWeather/1.0 (personal weather app)' }, cf: { cacheTtl: 600, cacheEverything: true } });
+  if (!r.ok) throw new Error('Met Office ' + r.status);
+  const xml = await r.text();
+  const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => {
+    const tag = n => { const x = m[1].match(new RegExp(`<${n}[^>]*>([\\s\\S]*?)<\\/${n}>`)); return x ? unxml(x[1]) : ''; };
+    const title = tag('title'), level = (title.match(/\b(yellow|amber|red)\b/i) || [,'yellow'])[1].toLowerCase();
+    return { title, level, description: tag('description'), link: tag('link') || 'https://weather.metoffice.gov.uk/warnings-and-advice/uk-warnings', guid: tag('guid') || title, published: tag('pubDate') };
+  });
+  return items;
+}
+async function warningsFor(env, st, s){
+  const loc = await getLoc(env, st);
+  const region = s.warnRegion && s.warnRegion !== 'auto' ? s.warnRegion : loc ? nearestRegion(loc.lat, loc.lon) : 'se';
+  return { region, regionName: REGIONS[region][0], warnings: await getWarnings(region) };
+}
+// on the timer: once an hour, push any warnings we haven't told you about yet
+async function maybeWarnings(env){
+  const st = await getState(env), s = { ...DEFAULTS, ...(st.settings || {}) };
+  if (!s.warnAlerts) return;
+  if (st.lastWarnCheck && Date.now() - st.lastWarnCheck < 55 * 60e3) return;
+  let w; try { w = await warningsFor(env, st, s); } catch (e) { return; }
+  const seen = new Set(st.seenWarn || []), fresh = w.warnings.filter(x => !seen.has(x.guid));
+  for (const x of fresh) {
+    const lvl = x.level[0].toUpperCase() + x.level.slice(1);
+    await notify(env, `⚠️ ${lvl} weather warning – ${w.regionName}`, (x.description || x.title).slice(0, 900), 'warning', x.level === 'yellow' ? 'default' : 'high');
+  }
+  const st2 = await getState(env);
+  st2.lastWarnCheck = Date.now(); st2.seenWarn = w.warnings.map(x => x.guid).slice(0, 40);
+  await putState(env, st2);
+}
+
 async function check(env, force) {
   const st = await getState(env);
   const s = { ...DEFAULTS, ...(st.settings || {}) };
@@ -339,6 +386,8 @@ export default {
       if (typeof b.summary === 'boolean') s.summary = b.summary;
       if (Number.isInteger(+b.summaryHour) && +b.summaryHour >= 4 && +b.summaryHour <= 11) s.summaryHour = +b.summaryHour;
       if (typeof b.evening === 'boolean') s.evening = b.evening;
+      if (typeof b.warnAlerts === 'boolean') s.warnAlerts = b.warnAlerts;
+      if (typeof b.warnRegion === 'string' && (b.warnRegion === 'auto' || /^[a-z]{2}$/.test(b.warnRegion))) s.warnRegion = b.warnRegion;
       if (Number.isInteger(+b.eveningHour) && +b.eveningHour >= 12 && +b.eveningHour <= 22) s.eveningHour = +b.eveningHour;
       st.settings = s;
       await putState(env, st);
@@ -364,7 +413,12 @@ export default {
 
     if (path === '/check') return json(await check(env, true));
     // /tick does exactly what the 10-minute timer does – for an outside scheduler such as cron-job.org
-    if (path === '/tick') { await maybeSummary(env); const r = await check(env, false); return json({ ok: true, ...r }); }
+    if (path === '/tick') { await maybeSummary(env); try { await maybeWarnings(env); } catch (e) {} const r = await check(env, false); return json({ ok: true, ...r }); }
+    if (path === '/warnings') {
+      const st = await getState(env), s = { ...DEFAULTS, ...(st.settings || {}) };
+      try { return json({ ok: true, ...(await warningsFor(env, st, { ...s, warnRegion: url.searchParams.get('region') || s.warnRegion })), regions: Object.fromEntries(Object.entries(REGIONS).map(([k,v]) => [k, v[0]])) }); }
+      catch (e) { return json({ ok: false, error: String(e.message || e) }, 502); }
+    }
     if (path === '/summary') return json(await summary(env, true, url.searchParams.get('kind') === 'evening' ? 'evening' : 'morning'));
 
     return json({ error: 'not found' }, 404);
@@ -373,6 +427,6 @@ export default {
   async scheduled(event, env, ctx) {
     env = withConfig(env);
     // one after the other, so they don't overwrite each other's saved state
-    ctx.waitUntil((async () => { try { await maybeSummary(env); } catch (e) {} await check(env, false); })());
+    ctx.waitUntil((async () => { try { await maybeSummary(env); } catch (e) {} try { await maybeWarnings(env); } catch (e) {} await check(env, false); })());
   },
 };
