@@ -307,7 +307,7 @@ footer a{color:inherit}
     </h2>
     <div class="foldbody">
     <div class="scroll"><table class="hours" id="hourTable"></table></div>
-    <div class="muted small" style="margin-top:8px">Temp (feels like) · rain mm (chance) · wind speed (gusts) – arrows point where the wind blows <b>to</b> · Hum = humidity · Cld = cloud cover · UV index · dot = ride rating.</div>
+    <div class="muted small" style="margin-top:8px">Temp (feels like) · rain mm in the hour from that time, where 2 of 3 models agree (chance) · wind speed (gusts) – arrows point where the wind blows <b>to</b> · Hum = humidity · Cld = cloud cover · UV index · dot = ride rating.</div>
     </div>
   </section>
 
@@ -501,15 +501,16 @@ async function cachedJSON(url, maxAge){
 }
 
 async function load(force){
-  if(!force && S.loading) return;
-  S.loading = true; setTimeout(()=>S.loading=false, 4000);
+  const lkey = `${S.loc.lat},${S.loc.lon},${S.model}`;
+  if(!force && S.loading === lkey) return;          // same place & model already loading – skip the duplicate
+  S.loading = lkey; setTimeout(()=>{ if(S.loading===lkey) S.loading = null; }, 4000);
   S.loadedAt = Date.now();
   const {lat, lon} = S.loc;
   $('place').textContent = S.loc.name;
   $('updated').textContent = 'loading…';
   const common = `latitude=${lat}&longitude=${lon}&timezone=auto&wind_speed_unit=mph`;
   const hourlyVars = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day,relative_humidity_2m,cloud_cover,uv_index';
-  const modelParam = S.model==='best_match' ? '' : `&models=${S.model}`;
+  const modelParam = S.model==='best_match' ? '' : S.model==='consensus' ? `&models=${RAIN_MODELS.join(',')}` : `&models=${S.model}`;
   const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
     + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=19&forecast_days=14`
     + `&daily=sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant`;
@@ -517,14 +518,16 @@ async function load(force){
   const notice = $('notice'); notice.hidden = true;
   clearTimeout(S.retry);
   try{
-    const rcUrl = `${API}?${common}&minutely_15=precipitation&forecast_minutely_15=19&models=${RAIN_MODELS.join(',')}`;
+    const rcUrl = `${API}?${common}&minutely_15=precipitation&forecast_minutely_15=19&hourly=precipitation&forecast_days=14&models=${RAIN_MODELS.join(',')}`;
     const [main, cmp, rc] = await Promise.all([
       cachedJSON(mainUrl, force ? 0 : 10*60000),
       cachedJSON(cmpUrl, force ? 5*60000 : 30*60000).catch(e=>({error:e.message})),
       cachedJSON(rcUrl, force ? 0 : 10*60000).catch(e=>null)
     ]);
-    S.main = main.data; S.cmp = cmp.error ? cmp : cmp.data; OFFSET = S.main.utc_offset_seconds || 0;
+    S.main = S.model==='consensus' ? mergeModels(main.data, RAIN_MODELS) : main.data;
+    S.cmp = cmp.error ? cmp : cmp.data; OFFSET = S.main.utc_offset_seconds || 0;
     S.rain15 = rc ? agreeRain15(rc.data) : null;
+    S.rainHr = rc ? agreeRainHourly(rc.data) : null;
     renderAll();
     $('updated').textContent = 'updated ' + new Date(main.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
@@ -583,6 +586,52 @@ function agreeRain15(d){
   return {time:m.time, precipitation};
 }
 const rain15 = () => S.rain15 || (S.main && S.main.minutely_15);
+
+// hourly rain where 2 of the 3 agree, keyed by time (value = rain in the hour BEFORE that time, as Open-Meteo gives it)
+function agreeRainHourly(d){
+  const h = d && d.hourly; if(!h || !h.time) return null;
+  const arrs = RAIN_MODELS.map(id => h[`precipitation_${id}`]).filter(Boolean); if(!arrs.length) return null;
+  const map = new Map();
+  h.time.forEach((t,i) => { const v = arrs.map(a=>a[i]).filter(x=>x!=null).sort((a,b)=>a-b); map.set(t, !v.length ? null : v.length===3 ? v[1] : v[0]); });
+  return map;
+}
+// rain for the hour STARTING at row i (so the "15" row = 15:00–16:00); uses the 2-of-3 rain when available
+function rainFrom(i){
+  const h = S.main.hourly, next = h.time[i+1];
+  if(!next) return null;
+  if(S.rainHr && S.rainHr.has(next)) return S.rainHr.get(next);
+  return h.precipitation[i+1];
+}
+function chanceFrom(i){ const h = S.main.hourly; return h.precipitation_probability ? (h.precipitation_probability[i+1] ?? null) : null; }
+
+// ---------- consensus: middle value of several models for every forecast field ----------
+function mergeModels(d, ids){
+  const out = {...d};
+  const median = v => { v = v.filter(x=>x!=null && !Number.isNaN(x)).sort((a,b)=>a-b); if(!v.length) return null; return v.length%2 ? v[(v.length-1)/2] : (v[v.length/2-1]+v[v.length/2])/2; };
+  const circ = v => { v = v.filter(x=>x!=null); if(!v.length) return null; const sx = v.reduce((a,b)=>a+Math.sin(b*Math.PI/180),0), cx = v.reduce((a,b)=>a+Math.cos(b*Math.PI/180),0); return (Math.atan2(sx,cx)*180/Math.PI+360)%360; };
+  const lowerOf2 = v => { v = v.filter(x=>x!=null).sort((a,b)=>a-b); return !v.length ? null : v.length===3 ? v[1] : v[0]; };
+  const pick = (name, vals) => {
+    if(/direction/.test(name)) return circ(vals);
+    if(name==='weather_code'){ const m = median(vals); return m==null ? null : Math.round(m); }   // middle severity = at least 2 models that bad
+    if(name==='is_day') return vals.find(x=>x!=null) ?? null;
+    if(/precipitation$|^rain$|^showers$|snowfall/.test(name)) return lowerOf2(vals);
+    if(typeof vals.find(x=>x!=null)==='string') return vals.find(x=>x!=null);
+    return median(vals);
+  };
+  ['current','hourly','daily','minutely_15'].forEach(block => {
+    const b = d[block]; if(!b) return;
+    const nb = {}, names = new Set();
+    Object.keys(b).forEach(k => { const id = ids.find(m => k.endsWith('_'+m)); if(id) names.add(k.slice(0, -id.length-1)); else nb[k] = b[k]; });
+    names.forEach(name => {
+      const series = ids.map(id => b[`${name}_${id}`]).filter(x=>x!==undefined);
+      if(!series.length) return;
+      if(Array.isArray(series[0])){ const n = series[0].length; nb[name] = Array.from({length:n}, (_,i) => pick(name, series.map(a=>a[i]))); }
+      else nb[name] = pick(name, series);
+    });
+    out[block] = nb;
+  });
+  return out;
+}
 
 function nextSlots(){
   const m = rain15(); if(!m) return [];
@@ -720,7 +769,7 @@ function dayIcon(date, fallback){
 
 function renderDays(){
   const d = S.main.daily, box = $('days');
-  if(!d || !d.time){ box.innerHTML = ''; return; }
+  if(!d || !d.time || !d.temperature_2m_max){ box.innerHTML = ''; return; }
   const today = (S.main.current.time || '').slice(0,10);
   box.innerHTML = d.time.map((t,i) => {
     if(d.temperature_2m_max[i]==null) return '';
@@ -754,7 +803,7 @@ function hourStart(){
 
 function rideScore(i){
   const h = S.main.hourly;
-  const p = h.precipitation[i]||0, pp = h.precipitation_probability ? (h.precipitation_probability[i]??null) : null;
+  const p = rainFrom(i)||0, pp = chanceFrom(i);
   const w = h.wind_speed_10m[i]||0, g = h.wind_gusts_10m[i]||0, t = h.apparent_temperature[i] ?? h.temperature_2m[i];
   let s = p*3 + (pp!=null ? pp*0.02 : (p>0?1:0));
   s += Math.max(0, w-8)*0.25 + Math.max(0, g-22)*0.15;
@@ -778,7 +827,7 @@ function renderHourly(){
   for(let i=start;i<end;i++){
     const t = h.time[i], d = t.slice(0,10);
     if(d!==lastDay){ html += `<tr class="day"><td colspan="9">${dayLabel(t)}</td></tr>`; lastDay = d; }
-    const p = h.precipitation[i], pp = hasProb ? h.precipitation_probability[i] : null;
+    const p = rainFrom(i), pp = hasProb ? chanceFrom(i) : null;
     const w = h.wind_speed_10m[i], dir = h.wind_direction_10m[i], g = h.wind_gusts_10m[i];
     const te = h.temperature_2m[i], fe = h.apparent_temperature[i];
     const hum = val(h.relative_humidity_2m, i), cc = val(h.cloud_cover, i), uv = val(h.uv_index, i);
@@ -813,7 +862,7 @@ function renderWindow(){
   if(!best){ $('rideWindow').textContent = 'No daylight window left today'; $('rideWhy').textContent = 'Check tomorrow in the hourly list.'; return; }
   const i = best.i, j = i+len-1;
   const endT = new Date(toMs(h.time[j]) + 3600000 + OFFSET*1000).toISOString().slice(11,16);
-  const rain = h.precipitation.slice(i,j+1).reduce((a,b)=>a+(b||0),0);
+  let rain = 0; for(let k=i;k<=j;k++) rain += rainFrom(k)||0;
   const wind = Math.max(...h.wind_speed_10m.slice(i,j+1)), gust = Math.max(...h.wind_gusts_10m.slice(i,j+1));
   $('rideWindow').innerHTML = `<span style="color:${scoreColour(best.s)}">●</span> ${hhmm(h.time[i])}–${endT}`;
   $('rideWhy').textContent = `${rain.toFixed(1)} mm rain · wind up to ${fmtSpd(wind)} ${S.unit} from ${dirName(h.wind_direction_10m[i])}, gusts ${fmtSpd(gust)} · start into the wind, come home with it behind you.`;
@@ -1685,7 +1734,7 @@ $('tempTheme').checked = store.get('tempTheme', true);
 $('tempTheme').onchange = e => { store.set('tempTheme', e.target.checked); applyTempTheme(S.main && S.main.current ? S.main.current.temperature_2m : null); };
 $('refreshBtn').onclick = () => { load(true); refreshSrv(); };
 
-$('modelSel').innerHTML = `<option value="best_match">Best match</option>` + MODELS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+$('modelSel').innerHTML = `<option value="consensus">Consensus (DMI · ICON · Met Office)</option><option value="best_match">Best match</option>` + MODELS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
 $('modelSel').value = S.model;
 $('modelSel').onchange = e => { S.model = e.target.value; store.set('model', S.model); load(); };
 
