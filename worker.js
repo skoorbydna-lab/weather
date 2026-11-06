@@ -28,7 +28,7 @@ function withConfig(env) {
   return e;
 }
 
-const VERSION = '2026-11-06b';
+const VERSION = '2026-11-06c';
 const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6, agree: 2, summary: true, summaryHour: 7, evening: true, eveningHour: 17 };
 // models that vote on whether rain is coming (all have good UK detail)
 const ALERT_MODELS = [
@@ -363,6 +363,8 @@ export default {
     }
 
     if (path === '/check') return json(await check(env, true));
+    // /tick does exactly what the 10-minute timer does – for an outside scheduler such as cron-job.org
+    if (path === '/tick') { await maybeSummary(env); const r = await check(env, false); return json({ ok: true, ...r }); }
     if (path === '/summary') return json(await summary(env, true, url.searchParams.get('kind') === 'evening' ? 'evening' : 'morning'));
 
     return json({ error: 'not found' }, 404);
