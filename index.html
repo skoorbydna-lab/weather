@@ -11,6 +11,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -173,9 +175,60 @@ footer a{color:inherit}
 .mk-i svg{filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
 .scale{display:flex;height:8px;border-radius:4px;overflow:hidden;flex:1;max-width:180px}
 
+
+/* ================= polished glass look ================= */
+:root{
+  --bg:rgba(8,16,36,.62); --card:rgba(12,22,46,.48); --line:rgba(255,255,255,.13);
+  --ink:#f4f7ff; --muted:rgba(226,234,255,.70); --accent:#5b9dff;
+}
+html{background:#0b1430}
+body{background:transparent!important}
+body{font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;letter-spacing:-.005em}
+#sky,#skyfx{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none}
+#sky{z-index:-2;transition:background 1.2s ease}
+#skyfx{z-index:-1}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.11),rgba(255,255,255,.035)) ,var(--card);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);
+  border:1px solid rgba(255,255,255,.16);border-radius:22px;
+  box-shadow:0 12px 32px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.18);
+  padding:16px;
+}
+.card h2{font-size:.7rem;letter-spacing:.12em;font-weight:700;color:var(--muted)}
+.btn{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:12px;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transition:background .15s, transform .1s}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:linear-gradient(135deg,#5b9dff,#8b5cf6);border:0;color:#fff;box-shadow:0 6px 16px rgba(91,120,255,.45)}
+.search input,.field{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:12px;color:var(--ink)}
+.search input::placeholder{color:var(--muted)}
+.results{background:rgba(14,24,50,.92);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border-radius:14px}
+.seg{border:1px solid rgba(255,255,255,.16);border-radius:12px;background:rgba(255,255,255,.06)}
+.seg button.on,.chip.on{background:linear-gradient(135deg,#5b9dff,#8b5cf6);color:#fff;border-color:transparent}
+.chip{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16)}
+.layers label{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16)}
+.appname{font-weight:800;letter-spacing:-.02em;text-shadow:0 2px 12px rgba(0,0,0,.45)}
+.place,.cdate,.csun{text-shadow:0 1px 8px rgba(0,0,0,.55)}
+.logo{border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.ctime{font-weight:800;letter-spacing:-.02em;text-shadow:0 2px 12px rgba(0,0,0,.45)}
+.bigtemp{font-weight:800;letter-spacing:-.04em;
+  background:linear-gradient(180deg,#ffffff 30%,rgba(255,255,255,.72));-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 16px rgba(0,0,0,.25))}
+.day{background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.14);border-radius:18px}
+.day.on{border-color:#7aa8ff;box-shadow:0 0 0 1px #7aa8ff inset, 0 6px 18px rgba(91,157,255,.25)}
+#hourTable thead th{background:rgba(16,26,52,.94)}
+.hours tr.day td{background:rgba(22,34,66,.92);border-radius:0}
+.hours td{border-bottom:1px solid rgba(255,255,255,.07)}
+.rcwrap{background:rgba(255,255,255,.10);border-radius:14px}
+.hbox{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12);border-radius:14px}
+.notice{background:rgba(14,24,50,.55);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-color:rgba(255,255,255,.16);border-radius:16px}
+#map{border-radius:16px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.subhead{border-top-color:rgba(255,255,255,.10)}
+footer{text-shadow:0 1px 6px rgba(0,0,0,.4)}
+@media (prefers-reduced-motion: reduce){ #skyfx{display:none} }
 </style>
 </head>
 <body>
+<div id="sky"></div><canvas id="skyfx"></canvas>
 <div class="wrap">
   <header>
     <div class="brand">
@@ -204,7 +257,8 @@ footer a{color:inherit}
   <section class="card" id="settings" hidden>
     <h2><span>Settings</span><button class="btn sm" id="setClose">Done</button></h2>
     <label class="switch" style="margin-bottom:10px"><input type="checkbox" id="autoFs"> Go full screen automatically when I first tap the app</label>
-    <label class="switch" style="margin-bottom:10px"><input type="checkbox" id="tempTheme"> Background colour follows the current temperature</label>
+    <div class="row between" style="margin-bottom:10px"><span>Background</span>
+      <select id="bgMode" class="btn sm"><option value="weather">Live weather sky</option><option value="temp">Temperature colour</option><option value="plain">Plain</option></select></div>
     <div class="row between" style="margin-bottom:10px">
       <span>Wind speed units</span>
       <span class="seg" id="unitSeg"><button data-u="mph">mph</button><button data-u="km/h">km/h</button></span>
@@ -517,7 +571,7 @@ async function load(force){
   const common = `latitude=${lat}&longitude=${lon}&timezone=auto&wind_speed_unit=mph`;
   const hourlyVars = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day,relative_humidity_2m,cloud_cover,uv_index';
   const modelParam = S.model==='best_match' ? '' : S.model==='consensus' ? `&models=${RAIN_MODELS.join(',')}` : `&models=${S.model}`;
-  const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
+  const mainUrl = `${API}?${common}${modelParam}&current=temperature_2m,apparent_temperature,precipitation,weather_code,is_day,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m`
     + `&hourly=${hourlyVars}&minutely_15=precipitation&forecast_minutely_15=19&forecast_days=14`
     + `&daily=sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant`;
   const cmpUrl = `${API}?${common}&models=${MODELS.map(m=>m.id).join(',')}&hourly=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m,wind_gusts_10m,apparent_temperature,cloud_cover,relative_humidity_2m,pressure_msl&forecast_days=14`;
@@ -563,7 +617,7 @@ function renderNow(){
   $('nowWind').innerHTML = `<span style="color:${windColour(c.wind_speed_10m)}">${fmtSpd(c.wind_speed_10m)} ${S.unit}</span> ${dirName(c.wind_direction_10m)}`;
   $('nowGust').textContent = `gusts ${fmtSpd(c.wind_gusts_10m)}`;
   drawCompass(c.wind_direction_10m, c.wind_speed_10m);
-  applyTempTheme(c.temperature_2m);
+  applySky(c);
 }
 
 function drawCompass(dir, mph){
@@ -659,17 +713,128 @@ function renderRain(){
 }
 
 // ---------- background tinted by temperature (same scale as the map) ----------
-function applyTempTheme(t){
-  const root = document.documentElement.style;
-  if(!store.get('tempTheme', true) || t==null){
-    ['--bg','--card','--line'].forEach(v=>root.removeProperty(v));
-    document.querySelector('meta[name=theme-color]').content = '#0a1a3a'; return;
-  }
-  const c = ramp(TEMP_STOPS, t), mix = (base, k) => `rgb(${c.map((v,i)=>Math.round(v*k + base[i]*(1-k))).join(',')})`;
-  const bg = mix([6,12,28], .22), card = mix([12,24,52], .30), line = mix([30,50,95], .45);
-  root.setProperty('--bg', bg); root.setProperty('--card', card); root.setProperty('--line', line);
-  document.querySelector('meta[name=theme-color]').content = bg;
+// ---------- live sky background: matches the current weather ----------
+const SKY = { cv:null, ctx:null, raf:0, last:0, w:0, h:0, st:null, clouds:[], drops:[], flakes:[], stars:[], streaks:[], fog:[], flash:0, nextFlash:0 };
+const SKIES = {   // [top, bottom] day / night
+  clear:   [['#1f6fd6','#8cc4ff'], ['#070d24','#1c2c5a']],
+  partly:  [['#2d6fc2','#9cc2ea'], ['#0b132c','#23345e']],
+  cloudy:  [['#4b5869','#97a3b3'], ['#141b27','#2e3a4c']],
+  rain:    [['#2b3a4f','#5d7189'], ['#0c121b','#233041']],
+  storm:   [['#1b2130','#414b5f'], ['#080b12','#1f2635']],
+  snow:    [['#7a8ea8','#d3dce8'], ['#1b2433','#3d4c66']],
+  fog:     [['#6d7884','#b7c0ca'], ['#1e242c','#3d454f']],
+};
+function skyKind(c){
+  const code = c.weather_code ?? 0;
+  if(code>=95) return 'storm';
+  if((code>=71 && code<=77) || code===85 || code===86) return 'snow';
+  if(code>=51) return 'rain';
+  if(code===45 || code===48) return 'fog';
+  const cc = c.cloud_cover;
+  if(code===3 || (cc!=null && cc>=80)) return 'cloudy';
+  if(code===1 || code===2 || (cc!=null && cc>=25)) return 'partly';
+  return 'clear';
 }
+function applySky(c){
+  const mode = store.get('bgMode', 'weather'), sky = $('sky'), meta = document.querySelector('meta[name=theme-color]');
+  if(!c || mode==='plain'){ sky.style.background = 'linear-gradient(180deg,#0b1430,#16224a)'; meta.content = '#0b1430'; skyStop(); return; }
+  if(mode==='temp'){
+    const col = ramp(TEMP_STOPS, c.temperature_2m ?? 10), mix = (base,k) => `rgb(${col.map((v,i)=>Math.round(v*k+base[i]*(1-k))).join(',')})`;
+    const top = mix([6,12,28], .28), bot = mix([10,20,45], .5);
+    sky.style.background = `linear-gradient(180deg,${top},${bot})`; meta.content = top; skyStop(); return;
+  }
+  const kind = skyKind(c), day = (c.is_day ?? 1) === 1, [top, bot] = SKIES[kind][day ? 0 : 1];
+  const dim = {snow:.42, fog:.4, cloudy:day?.3:.1, partly:day?.18:.05, clear:day?.14:0, rain:day?.18:.05, storm:.08}[kind] || 0;   // keep white text readable on bright skies
+  sky.style.background = `linear-gradient(rgba(6,12,30,${dim}),rgba(6,12,30,${dim})), linear-gradient(180deg,${top} 0%,${bot} 100%)`;
+  meta.content = top;
+  const mph = c.wind_speed_10m || 0, rain = c.precipitation || 0;
+  SKY.st = { kind, day, wind:mph, windy: mph >= 18, rain: kind==='storm' ? Math.max(rain, 2) : kind==='rain' ? Math.max(rain, (c.weather_code>=63 && c.weather_code!==80) ? 1.5 : 0.5) : 0,
+             cloud: c.cloud_cover ?? (kind==='cloudy'||kind==='rain'||kind==='storm'||kind==='snow'||kind==='fog' ? 95 : kind==='partly' ? 45 : 5),
+             dir: c.wind_direction_10m ?? 270 };
+  skySetup(); skyStart();
+}
+function skySetup(){
+  const cv = $('skyfx'); SKY.cv = cv; SKY.ctx = cv.getContext('2d');
+  SKY.w = cv.width = Math.round(innerWidth * .6); SKY.h = cv.height = Math.round(innerHeight * .6);   // low-res: soft and cheap
+  const st = SKY.st, W = SKY.w, H = SKY.h, rnd = (a,b) => a + Math.random()*(b-a);
+  const nClouds = Math.round((st.cloud/100) * 9) + (st.kind==='cloudy'||st.kind==='rain'||st.kind==='storm' ? 4 : 0);
+  SKY.clouds = Array.from({length:nClouds}, () => ({x:rnd(-W*.3, W), y:rnd(-H*.05, H*.45), s:rnd(.6,1.5), a:rnd(.25,.6), v:rnd(.6,1.2)}));
+  SKY.drops = st.rain>0 ? Array.from({length:Math.round(Math.min(500, 80 + st.rain*120))}, () => ({x:rnd(0,W), y:rnd(0,H), l:rnd(6,14), v:rnd(7,11)})) : [];
+  SKY.flakes = st.kind==='snow' ? Array.from({length:160}, () => ({x:rnd(0,W), y:rnd(0,H), r:rnd(.8,2.2), v:rnd(.4,1.1), p:rnd(0,6.28)})) : [];
+  SKY.stars = !st.day && (st.kind==='clear'||st.kind==='partly') ? Array.from({length:90}, () => ({x:rnd(0,W), y:rnd(0,H*.7), r:rnd(.3,1.1), p:rnd(0,6.28)})) : [];
+  SKY.streaks = st.windy ? Array.from({length:14}, () => ({x:rnd(-W,W), y:rnd(H*.1,H*.9), l:rnd(40,110), v:rnd(4,8), a:rnd(.08,.18)})) : [];
+  SKY.fog = st.kind==='fog' ? Array.from({length:6}, (_,i) => ({x:rnd(-W,0), y:H*(.25+i*.13), w:W*rnd(1.2,1.8), h:H*rnd(.08,.14), v:rnd(.15,.35), a:rnd(.18,.3)})) : [];
+  SKY.nextFlash = performance.now() + 4000 + Math.random()*8000;
+}
+function skyStop(){ if(SKY.raf){ cancelAnimationFrame(SKY.raf); SKY.raf = 0; } if(SKY.ctx) SKY.ctx.clearRect(0,0,SKY.w,SKY.h); }
+function skyStart(){ if(!SKY.raf && !document.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) SKY.raf = requestAnimationFrame(skyFrame); }
+function cloudPuff(ctx, x, y, s, a, dark){
+  const col = dark ? '120,130,145' : '255,255,255';
+  [[0,0,60],[45,-18,50],[90,0,58],[40,14,55],[-35,10,40],[125,12,38]].forEach(([dx,dy,r]) => {
+    const R = r*s, g = ctx.createRadialGradient(x+dx*s, y+dy*s, 0, x+dx*s, y+dy*s, R);
+    g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x+dx*s, y+dy*s, R, 0, 6.283); ctx.fill();
+  });
+}
+function skyFrame(t){
+  SKY.raf = 0;
+  if(document.hidden || !SKY.st) return;
+  if(t - SKY.last < 33){ SKY.raf = requestAnimationFrame(skyFrame); return; }   // ~30 fps is plenty
+  SKY.last = t;
+  const ctx = SKY.ctx, W = SKY.w, H = SKY.h, st = SKY.st;
+  ctx.clearRect(0,0,W,H);
+  // sun glow / moon
+  if(st.kind==='clear' || st.kind==='partly'){
+    const x = W*.82, y = H*.12;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, W*.55);
+    if(st.day){ g.addColorStop(0,'rgba(255,240,190,.55)'); g.addColorStop(.25,'rgba(255,220,150,.18)'); g.addColorStop(1,'rgba(255,220,150,0)'); }
+    else { g.addColorStop(0,'rgba(220,230,255,.25)'); g.addColorStop(.15,'rgba(200,215,255,.06)'); g.addColorStop(1,'rgba(200,215,255,0)'); }
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  }
+  // stars
+  SKY.stars.forEach(s => { const a = .45 + .45*Math.sin(t/900 + s.p); ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.fill(); });
+  // clouds drift with the wind
+  const drift = (.08 + st.wind*.012) * (Math.sin((st.dir-90)*Math.PI/180) >= 0 ? -1 : 1) * -1;
+  const dark = st.kind==='rain' || st.kind==='storm';
+  SKY.clouds.forEach(c => {
+    c.x += drift * c.v;
+    if(c.x > W + 150) c.x = -260; if(c.x < -260) c.x = W + 150;
+    cloudPuff(ctx, c.x, c.y, c.s, c.a * (st.day ? 1 : .55), dark);
+  });
+  // fog bands
+  SKY.fog.forEach(f => {
+    f.x += f.v; if(f.x > W) f.x = -f.w;
+    const g = ctx.createLinearGradient(0, f.y - f.h, 0, f.y + f.h);
+    g.addColorStop(0,'rgba(230,235,240,0)'); g.addColorStop(.5,`rgba(230,235,240,${f.a})`); g.addColorStop(1,'rgba(230,235,240,0)');
+    ctx.fillStyle = g; ctx.fillRect(f.x, f.y - f.h, f.w, f.h*2); ctx.fillRect(f.x - f.w, f.y - f.h, f.w, f.h*2);
+  });
+  // wind streaks
+  SKY.streaks.forEach(s => {
+    s.x += s.v; if(s.x > W + s.l) { s.x = -s.l - Math.random()*W; s.y = H*(.1 + Math.random()*.8); }
+    const g = ctx.createLinearGradient(s.x - s.l, 0, s.x, 0);
+    g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(1,`rgba(255,255,255,${s.a})`);
+    ctx.strokeStyle = g; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(s.x - s.l, s.y); ctx.quadraticCurveTo(s.x - s.l/2, s.y - 6, s.x, s.y); ctx.stroke();
+  });
+  // rain
+  if(SKY.drops.length){
+    const slant = Math.min(4, st.wind*.12);
+    ctx.strokeStyle = 'rgba(200,220,255,.45)'; ctx.lineWidth = 1; ctx.beginPath();
+    SKY.drops.forEach(d => { ctx.moveTo(d.x, d.y); ctx.lineTo(d.x - slant, d.y + d.l); d.y += d.v; d.x -= slant*.6; if(d.y > H){ d.y = -d.l; d.x = Math.random()*W*1.2; } });
+    ctx.stroke();
+  }
+  // snow
+  SKY.flakes.forEach(f => { f.y += f.v; f.x += Math.sin(t/1200 + f.p)*.4 + st.wind*.01; if(f.y > H){ f.y = -3; f.x = Math.random()*W; }
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 6.283); ctx.fill(); });
+  // lightning
+  if(st.kind==='storm'){
+    if(t > SKY.nextFlash){ SKY.flash = 1; SKY.nextFlash = t + 5000 + Math.random()*10000; }
+    if(SKY.flash > 0){ ctx.fillStyle = `rgba(230,235,255,${SKY.flash*.35})`; ctx.fillRect(0,0,W,H); SKY.flash -= .08; }
+  }
+  SKY.raf = requestAnimationFrame(skyFrame);
+}
+document.addEventListener('visibilitychange', () => { if(!document.hidden && SKY.st && store.get('bgMode','weather')==='weather') skyStart(); });
+window.addEventListener('resize', () => { if(SKY.st && store.get('bgMode','weather')==='weather') skySetup(); });
+applySky(null);
 
 // ---------- raincast: 5-minute bars for the next 4 hours ----------
 const RC_STOPS = [[0.1,[74,222,128]],[1,[163,230,53]],[2,[250,204,21]],[3.5,[249,115,22]],[5,[239,68,68]]];   // mm/h
@@ -1770,8 +1935,8 @@ $('setClose').onclick = () => { $('settings').hidden = true; };
 function unitSeg(){ document.querySelectorAll('#unitSeg button').forEach(b=>b.classList.toggle('on', b.dataset.u===S.unit)); }
 document.querySelectorAll('#unitSeg button').forEach(b => b.onclick = () => { S.unit = b.dataset.u; store.set('unit', S.unit); unitSeg(); if(S.main) renderAll(); drawGrid(); });
 unitSeg();
-$('tempTheme').checked = store.get('tempTheme', true);
-$('tempTheme').onchange = e => { store.set('tempTheme', e.target.checked); applyTempTheme(S.main && S.main.current ? S.main.current.temperature_2m : null); };
+$('bgMode').value = store.get('bgMode', 'weather');
+$('bgMode').onchange = e => { store.set('bgMode', e.target.value); if(S.main) applySky(S.main.current); };
 $('refreshBtn').onclick = () => { load(true); refreshSrv(); };
 
 $('modelSel').innerHTML = `<option value="consensus">Consensus (DMI · ICON · Met Office)</option><option value="best_match">Best match</option>` + MODELS.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
