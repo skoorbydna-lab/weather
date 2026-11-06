@@ -239,6 +239,10 @@ footer a{color:inherit}
         <select id="sumHour" class="btn sm"><option value="5">05:00</option><option value="6">06:00</option><option value="7">07:00</option><option value="8">08:00</option><option value="9">09:00</option><option value="10">10:00</option></select>
         <button class="btn sm" id="sumNow">Send one now</button>
       </div>
+      <div class="row"><label class="switch"><input type="checkbox" id="eveOn"> Evening update at</label>
+        <select id="eveHour" class="btn sm"><option value="12">12:00</option><option value="13">13:00</option><option value="14">14:00</option><option value="15">15:00</option><option value="16">16:00</option><option value="17">17:00</option><option value="18">18:00</option><option value="19">19:00</option><option value="20">20:00</option><option value="21">21:00</option><option value="22">22:00</option></select>
+        <button class="btn sm" id="eveNow">Send one now</button>
+      </div>
       <div class="row">Quiet from
         <select id="qStart" class="btn sm"></select> to <select id="qEnd" class="btn sm"></select>
       </div>
@@ -1086,7 +1090,7 @@ document.querySelectorAll('#cmpMode button').forEach(b => b.onclick = () => { S.
 
 // ---------- alert server (ntfy) ----------
 const srvOK = () => S.srv.url && S.srv.key;
-const srvUrl = path => S.srv.url.replace(/\/+$/,'') + path + '?key=' + encodeURIComponent(S.srv.key);
+const srvUrl = path => S.srv.url.replace(/\/+$/,'') + path + (path.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(S.srv.key);
 
 async function srv(path, body){
   return getJSON(srvUrl(path), body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : undefined);
@@ -1113,7 +1117,7 @@ async function refreshSrv(){
     S.srvState = await srv('/status');
     const s = S.srvState.settings;
     $('srvOn').checked = s.enabled; $('alertThresh').value = String(s.thresh);
-    $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd); $('agree').value = String(s.agree || 2); $('sumOn').checked = s.summary !== false; $('sumHour').value = String(s.summaryHour || 7);
+    $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd); $('agree').value = String(s.agree || 2); $('sumOn').checked = s.summary !== false; $('sumHour').value = String(s.summaryHour || 7); $('eveOn').checked = s.evening !== false; $('eveHour').value = String(s.eveningHour || 17);
     showSrvState();
   }catch(e){ S.srvState=null; showSrvState(`Can't reach alert server (${e.message})`, 'err'); $('alertLine').textContent='Phone alerts: server not reachable'; }
 }
@@ -1133,7 +1137,7 @@ function sendLocation(force){
 async function pushSettings(){
   if(!srvOK()) return;
   try{
-    const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value, summary:$('sumOn').checked, summaryHour:+$('sumHour').value});
+    const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value, summary:$('sumOn').checked, summaryHour:+$('sumHour').value, evening:$('eveOn').checked, eveningHour:+$('eveHour').value});
     if(S.srvState) S.srvState.settings = r.settings;
     showSrvState('Saved ✓', 'okc');
   }catch(e){ showSrvState(`Couldn't save (${e.message})`, 'err'); }
@@ -1727,7 +1731,8 @@ $('srvCheck').onclick = async () => {
   try{ const r = await srv('/check'); showSrvState(r.dry ? `Checked: dry for the next hour${r.models?' ('+r.models+')':''} – notification sent` : r.alerted ? `Checked: rain due (${r.agreeing} models agree) – alert sent` : (r.skipped || r.error || 'Checked'), 'okc'); }
   catch(e){ showSrvState(`Check failed (${e.message})`, 'err'); }
 };
-['srvOn','alertThresh','qStart','qEnd','agree','sumOn','sumHour'].forEach(id => $(id).onchange = pushSettings);
+['srvOn','alertThresh','qStart','qEnd','agree','sumOn','sumHour','eveOn','eveHour'].forEach(id => $(id).onchange = pushSettings);
+$('eveNow').onclick = async () => { showSrvState('Sending evening update…'); try{ const r = await srv('/summary?kind=evening'); showSrvState(r.sent ? 'Evening update sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
 $('sumNow').onclick = async () => { showSrvState('Sending summary…'); try{ const r = await srv('/summary'); showSrvState(r.sent ? 'Summary sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
 $('shareLoc').onchange = e => { S.share = e.target.checked; store.set('share', S.share); if(S.share) sendLocation(true); };
 
