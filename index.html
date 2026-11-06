@@ -88,6 +88,9 @@ button,select,input{font:inherit;color:inherit}
 .wspd{font-weight:700}
 .gust{font-size:.78rem;color:var(--muted)}
 .dot{width:12px}
+.hscroll{max-height:65vh;overflow:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
+#hourTable thead th{position:sticky;top:0;z-index:3;background:var(--card)}
+#hourTable tr.day td{position:sticky;top:var(--hh,22px);z-index:2}
 #hourTable .hr{font-weight:800;font-size:1.05rem;font-variant-numeric:tabular-nums}
 #hourTable .ic{padding:2px 0}
 #hourTable .x{font-size:.82rem;color:var(--muted);text-align:center}
@@ -309,7 +312,7 @@ footer a{color:inherit}
       <span class="row" style="gap:6px;flex-wrap:nowrap"><select id="modelSel" class="btn sm" style="text-transform:none;letter-spacing:0"></select><span class="chev">▾</span></span>
     </h2>
     <div class="foldbody">
-    <div class="scroll"><table class="hours" id="hourTable"></table></div>
+    <div class="hscroll" id="hourBox"><table class="hours" id="hourTable"></table></div>
     <div class="muted small" style="margin-top:8px">Temp (feels like) · rain mm in the hour from that time, where 2 of 3 models agree (chance) · wind speed (gusts) – arrows point where the wind blows <b>to</b> · Hum = humidity · Cld = cloud cover · UV index · dot = ride rating.</div>
     </div>
   </section>
@@ -748,6 +751,13 @@ function renderClock(){
 setInterval(() => { renderClock(); if(S.main && !$('rcCard').classList.contains('closed')) renderRaincast(); }, 20000);
 renderClock();
 
+// scroll the hourly box (not the page) so that day's heading sits at the top
+function scrollHourlyTo(date, smooth){
+  const box = $('hourBox'), row = document.getElementById('hd-'+date); if(!box || !row) return;
+  const head = box.querySelector('thead'), top = row.offsetTop - (head ? head.offsetHeight : 0);
+  box.scrollTo({top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto'});
+}
+
 // ---------- 14-day outlook ----------
 // one symbol for the whole day: based on daytime hours, so a single drizzly hour doesn't make the day 'rain'
 function dayIcon(date, fallback){
@@ -791,10 +801,11 @@ function renderDays(){
     </div>`;
   }).join('');
   box.querySelectorAll('.day').forEach(el => el.onclick = () => {
-    S.hourDay = (S.hourDay===el.dataset.d || el.dataset.d===today) ? null : el.dataset.d;
-    renderDays(); renderHourly();
+    S.hourDay = el.dataset.d;
+    renderDays();
     setFold($('tab-hourly'), true);
     $('tab-hourly').scrollIntoView({behavior:'smooth', block:'start'});
+    setTimeout(() => scrollHourlyTo(el.dataset.d, true), 350);
   });
 }
 
@@ -819,17 +830,19 @@ const scoreColour = s => s<1.5 ? 'var(--good)' : s<3.5 ? 'var(--ok)' : 'var(--ba
 
 function renderHourly(){
   const h = S.main.hourly;
-  let start = hourStart(), end = Math.min(h.time.length, start+48);
-  if(S.hourDay){ const a = h.time.findIndex(t=>t.startsWith(S.hourDay)); if(a>=0){ start = a; end = Math.min(h.time.length, a+24); } }
-  $('hourTitle').textContent = S.hourDay ? 'Hourly – ' + dayLabel(S.hourDay+'T12:00') : 'Hourly forecast – next 48 h';
+  const start = hourStart();
+  let end = h.time.length;
+  while(end > start && h.temperature_2m[end-1]==null) end--;           // stop where this model's forecast runs out
+  const days = new Set(h.time.slice(start, end).map(t=>t.slice(0,10))).size;
+  $('hourTitle').textContent = `Hourly forecast · ${days} days`;
   const hasProb = h.precipitation_probability && h.precipitation_probability.some(v=>v!=null);
   const uvCol = u => u==null ? 'var(--muted)' : u<3 ? 'var(--good)' : u<6 ? '#eab308' : u<8 ? '#f97316' : '#ef4444';
   const val = (arr, k) => arr ? arr[k] : null;
-  let html = `<tr><th></th><th></th><th></th><th>°C</th><th>Rain</th><th>Wind</th><th title="Humidity">Hum</th><th title="Cloud cover">Cld</th><th title="UV index">UV</th></tr>`;
+  let html = `<thead><tr><th></th><th></th><th></th><th>°C</th><th>Rain</th><th>Wind</th><th title="Humidity">Hum</th><th title="Cloud cover">Cld</th><th title="UV index">UV</th></tr></thead><tbody>`;
   let lastDay = '';
   for(let i=start;i<end;i++){
     const t = h.time[i], d = t.slice(0,10);
-    if(d!==lastDay){ html += `<tr class="day"><td colspan="9">${dayLabel(t)}</td></tr>`; lastDay = d; }
+    if(d!==lastDay){ html += `<tr class="day" id="hd-${d}"><td colspan="9">${dayLabel(t)}</td></tr>`; lastDay = d; }
     const p = rainFrom(i), pp = hasProb ? chanceFrom(i) : null;
     const w = h.wind_speed_10m[i], dir = h.wind_direction_10m[i], g = h.wind_gusts_10m[i];
     const te = h.temperature_2m[i], fe = h.apparent_temperature[i];
@@ -847,7 +860,11 @@ function renderHourly(){
       <td class="x"><b style="color:${uvCol(uv)}">${uv==null?'–':Math.round(uv)}</b></td>
     </tr>`;
   }
-  $('hourTable').innerHTML = html;
+  const box = $('hourBox'), keep = box.scrollTop;
+  $('hourTable').innerHTML = html + '</tbody>';
+  box.scrollTop = keep;                                   // a refresh keeps your place
+  const th = $('hourTable').querySelector('thead');
+  if(th) box.style.setProperty('--hh', th.offsetHeight + 'px');
 }
 
 function renderWindow(){
