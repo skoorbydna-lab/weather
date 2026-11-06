@@ -28,6 +28,7 @@ function withConfig(env) {
   return e;
 }
 
+const VERSION = '2026-11-06';
 const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6, agree: 2, summary: true, summaryHour: 7 };
 // models that vote on whether rain is coming (all have good UK detail)
 const ALERT_MODELS = [
@@ -172,20 +173,25 @@ async function summary(env, force) {
     `Daylight: ${sun}`,
   ].join('\n');
   const sent = await notify(env, `Today's ride weather`, body, 'sunrise', 'default');
-  if (!force) { st.lastSummary = today; await putState(env, st); }
   return { sent: sent.ok, body };
 }
 
 async function maybeSummary(env) {
   const st = await getState(env);
   const s = { ...DEFAULTS, ...(st.settings || {}) };
-  if (!s.summary) return;
-  // the forecast's own timezone decides "7 am"; cheap check first using London time
-  const london = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/London' }));
-  if (london.getHours() !== s.summaryHour) return;
-  const today = london.toLocaleDateString('en-CA');
-  if (st.lastSummary === today) return;
-  await summary(env, false);
+  // UK time, worked out without relying on locale parsing
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false })
+    .formatToParts(new Date()).map(p => [p.type, p.value]));
+  const hour = +parts.hour % 24, today = `${parts.year}-${parts.month}-${parts.day}`;
+  st.lastRun = Date.now(); st.lastRunHour = hour;
+  if (!s.summary || hour !== s.summaryHour || st.lastSummary === today) { await putState(env, st); return; }
+  let res;
+  try { res = await summary(env, false); } catch (e) { res = { error: String(e) }; }
+  const st2 = await getState(env);
+  st2.lastRun = st.lastRun; st2.lastRunHour = hour;
+  st2.lastSummaryResult = { at: Date.now(), ...(res.sent !== undefined ? { sent: res.sent } : res) };
+  if (res.sent) st2.lastSummary = today;
+  await putState(env, st2);
 }
 
 async function check(env, force) {
@@ -301,7 +307,12 @@ export default {
 
     if (path === '/status') {
       const st = await getState(env);
-      return json({ ok: true, settings: { ...DEFAULTS, ...(st.settings || {}) }, loc: st.loc || null, lastAlert: st.lastAlert || null, raining: !!st.raining });
+      const t = v => v ? new Date(v).toLocaleString('en-GB', { timeZone: 'Europe/London' }) : null;
+      return json({ ok: true, version: VERSION, settings: { ...DEFAULTS, ...(st.settings || {}) }, loc: st.loc || null,
+        lastAlert: st.lastAlert || null, raining: !!st.raining,
+        timerLastRan: t(st.lastRun), lastSummaryDay: st.lastSummary || null,
+        lastSummaryResult: st.lastSummaryResult ? { ...st.lastSummaryResult, at: t(st.lastSummaryResult.at) } : null,
+        pushover: !!(env.PUSHOVER_USER && env.PUSHOVER_TOKEN), appUrl: env.APP_URL || null });
     }
 
     if (path === '/test') {
@@ -317,6 +328,7 @@ export default {
 
   async scheduled(event, env, ctx) {
     env = withConfig(env);
-    ctx.waitUntil(Promise.all([check(env, false), maybeSummary(env)]));
+    // one after the other, so they don't overwrite each other's saved state
+    ctx.waitUntil((async () => { try { await maybeSummary(env); } catch (e) {} await check(env, false); })());
   },
 };
