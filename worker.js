@@ -28,7 +28,7 @@ function withConfig(env) {
   return e;
 }
 
-const VERSION = '2026-11-06d';
+const VERSION = '2026-11-08';
 const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6, agree: 2, summary: true, summaryHour: 7, evening: true, eveningHour: 17, warnAlerts: true, warnRegion: 'auto' };
 // models that vote on whether rain is coming (all have good UK detail)
 const ALERT_MODELS = [
@@ -51,6 +51,7 @@ async function getState(env) {
 async function putState(env, st) {
   await env.STATE.put('state', JSON.stringify(st));
 }
+async function trySave(env, st) { try { await putState(env, st); return true; } catch (e) { return false; } }
 
 function distKm(a, b, c, d) {
   const R = 6371, r = Math.PI / 180;
@@ -218,18 +219,19 @@ async function maybeSummary(env) {
   const due = [];
   if (s.summary && hour === s.summaryHour && st.lastSummary !== today) due.push(['morning', 'lastSummary', 'lastSummaryResult']);
   if (s.evening && hour === s.eveningHour && st.lastEvening !== today) due.push(['evening', 'lastEvening', 'lastEveningResult']);
+  const newHour = st.lastRunHour !== hour;          // save "timer last ran" only once an hour (saves are limited)
+  if (!due.length) { if (newHour) { st.lastRun = Date.now(); st.lastRunHour = hour; await trySave(env, st); } return; }
+  // record "sent today" FIRST – if that can't be saved, don't send (so it can never repeat every 10 minutes)
+  due.forEach(([, dayKey]) => st[dayKey] = today);
   st.lastRun = Date.now(); st.lastRunHour = hour;
-  if (!due.length) { await putState(env, st); return; }
-  const results = [];
-  for (const [kind] of due) { let res; try { res = await summary(env, false, kind); } catch (e) { res = { error: String(e) }; } results.push(res); }
-  const st2 = await getState(env);
-  st2.lastRun = st.lastRun; st2.lastRunHour = hour;
-  due.forEach(([kind, dayKey, resKey], n) => {
-    const res = results[n];
+  if (!(await trySave(env, st))) return;
+  for (const [kind, dayKey, resKey] of due) {
+    let res; try { res = await summary(env, false, kind); } catch (e) { res = { error: String(e) }; }
+    const st2 = await getState(env);
     st2[resKey] = { at: Date.now(), ...(res.sent !== undefined ? { sent: res.sent } : res) };
-    if (res.sent) st2[dayKey] = today;
-  });
-  await putState(env, st2);
+    if (!res.sent && res.error) st2[dayKey] = null;            // failed to send: allow one more try on the next run
+    await trySave(env, st2);
+  }
 }
 
 // ---------- Met Office severe weather warnings (public RSS, one feed per region) ----------
@@ -267,16 +269,16 @@ async function warningsFor(env, st, s){
 async function maybeWarnings(env){
   const st = await getState(env), s = { ...DEFAULTS, ...(st.settings || {}) };
   if (!s.warnAlerts) return;
-  if (st.lastWarnCheck && Date.now() - st.lastWarnCheck < 55 * 60e3) return;
+  if (new Date().getUTCMinutes() >= 10) return;          // check once an hour, in the first run after the hour
   let w; try { w = await warningsFor(env, st, s); } catch (e) { return; }
   const seen = new Set(st.seenWarn || []), fresh = w.warnings.filter(x => !seen.has(x.guid));
+  if (!fresh.length) return;                             // nothing new – no save needed
+  st.seenWarn = [...new Set([...w.warnings.map(x => x.guid), ...(st.seenWarn || [])])].slice(0, 40);
+  if (!(await trySave(env, st))) return;                 // couldn't record them as seen – don't risk repeats
   for (const x of fresh) {
     const lvl = x.level[0].toUpperCase() + x.level.slice(1);
     await notify(env, `⚠️ ${lvl} weather warning – ${w.regionName}`, (x.description || x.title).slice(0, 900), 'warning', x.level === 'yellow' ? 'default' : 'high');
   }
-  const st2 = await getState(env);
-  st2.lastWarnCheck = Date.now(); st2.seenWarn = w.warnings.map(x => x.guid).slice(0, 40);
-  await putState(env, st2);
 }
 
 async function check(env, force) {
@@ -317,7 +319,7 @@ async function check(env, force) {
   const summary = votes.map(v => `${v.name} ${v.wet ? 'rain' : 'dry'}`).join(', ');
 
   if (yes.length < need) {
-    if (st.raining) { st.raining = false; await putState(env, st); }
+    if (st.raining) { st.raining = false; await trySave(env, st); }
     if (force) await notify(env, 'Dry for the next hour', `No rain expected at your location in the next hour (${summary}).`, 'white_check_mark', 'default');
     return { dry: true, models: summary };
   }
@@ -336,7 +338,7 @@ async function check(env, force) {
   await notify(env, 'Rain coming', `Rain ${when} - about ${total.toFixed(1)} mm in the next hour (${yes.length} of ${votes.length} models agree).${where}`);
   st.raining = true;
   st.lastAlert = now;
-  await putState(env, st);
+  await trySave(env, st);
   return { alerted: true, when, total, agreeing: `${yes.length} of ${votes.length}`, models: summary };
 }
 
@@ -367,9 +369,10 @@ export default {
       const st = await getState(env);
       const p = st.loc;
       // Only write if moved > 300 m or 10+ min since last save (keeps KV writes low)
-      if (!p || p.source === 'home' || distKm(p.lat, p.lon, lat, lon) > 0.3 || ts - p.ts > 10 * 60e3) {
+      const moved = p ? distKm(p.lat, p.lon, lat, lon) : 99, age = p ? ts - p.ts : 1e12;
+      if (!p || p.source === 'home' || (moved > 1 && age > 3 * 60e3) || age > 15 * 60e3) {
         st.loc = { lat: +lat.toFixed(4), lon: +lon.toFixed(4), ts, source: owntracks ? 'owntracks' : 'app' };
-        await putState(env, st);
+        await trySave(env, st);
       }
       return ack() || json({ ok: true, loc: st.loc });
     }
