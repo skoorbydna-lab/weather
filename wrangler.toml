@@ -1,0 +1,17 @@
+# Cloudflare setup for the ride-rain alert worker.
+# When this repo is connected in Cloudflare (Worker > Settings > Build),
+# every push to GitHub redeploys worker.js automatically.
+name = "ride-rain"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+# keep the Variables and Secrets set in the Cloudflare dashboard (KEY, Pushover keys)
+keep_vars = true
+
+[[kv_namespaces]]
+binding = "STATE"
+id = "f53a387480c44275a15786596b182ba3"
+
+[triggers]
+crons = ["*/10 * * * *"]
