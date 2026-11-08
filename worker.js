@@ -28,7 +28,7 @@ function withConfig(env) {
   return e;
 }
 
-const VERSION = '2026-11-08';
+const VERSION = '2026-11-08b';
 const DEFAULTS = { enabled: true, thresh: 0.1, quietStart: 22, quietEnd: 6, agree: 2, summary: true, summaryHour: 7, evening: true, eveningHour: 17, warnAlerts: true, warnRegion: 'auto' };
 // models that vote on whether rain is coming (all have good UK detail)
 const ALERT_MODELS = [
@@ -335,10 +335,12 @@ async function check(env, force) {
     const mins = Math.round((now - loc.ts) / 60000);
     where = mins < 2 ? '' : ` Location from ${mins < 90 ? mins + ' min' : Math.round(mins / 60) + ' h'} ago.`;
   }
-  await notify(env, 'Rain coming', `Rain ${when} - about ${total.toFixed(1)} mm in the next hour (${yes.length} of ${votes.length} models agree).${where}`);
+  // record the alert FIRST – if that can't be saved, don't send (avoids repeats when storage is full)
   st.raining = true;
   st.lastAlert = now;
-  await trySave(env, st);
+  if (!force && !(await trySave(env, st))) return { skipped: 'could not save (daily storage limit?) – alert not sent to avoid repeats' };
+  if (force) await trySave(env, st);
+  await notify(env, 'Rain coming', `Rain ${when} - about ${total.toFixed(1)} mm in the next hour (${yes.length} of ${votes.length} models agree).${where}`);
   return { alerted: true, when, total, agreeing: `${yes.length} of ${votes.length}`, models: summary };
 }
 
