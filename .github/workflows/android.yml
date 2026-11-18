@@ -34,11 +34,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk RideWeather.apk
+          cp android/wear/build/outputs/apk/release/wear-release.apk RideWeather-Watch.apk
           gh release delete android-build-failed -y --cleanup-tag || true
           gh release delete android -y --cleanup-tag || true
-          gh release create android RideWeather.apk --target "$GITHUB_SHA" \
+          gh release create android RideWeather.apk RideWeather-Watch.apk --target "$GITHUB_SHA" \
             --title "Ride Weather for Android (build ${GITHUB_RUN_NUMBER})" \
-            --notes "Download RideWeather.apk on your phone and open it to install or update. Built from ${GITHUB_SHA::7}."
+            --notes "RideWeather.apk is the phone app (open it on your phone to install or update). RideWeather-Watch.apk is the Pixel Watch app and tile (install with Wear Installer 2 or adb). Built from ${GITHUB_SHA::7}."
 
       - name: Report a failed build
         if: failure()
