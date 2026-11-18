@@ -282,6 +282,7 @@ header{background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,
 
     <h3>Phone rain alerts</h3>
     <div class="stack small">
+      <label class="switch" id="appNotiRow" hidden><input type="checkbox" id="appNoti"> <b>Send notifications from this app</b> (no Pushover or alert server needed)</label>
       <input class="field" id="srvUrl" placeholder="Alert server URL, e.g. https://ride-rain.yourname.workers.dev" style="width:100%">
       <input class="field" id="srvKey" placeholder="Secret key" style="width:100%" type="password">
       <div class="row">
@@ -1374,7 +1375,8 @@ async function srv(path, body){
 function showSrvState(msg, cls){
   const st = S.srvState;
   let line = '';
-  if(!srvOK()) line = 'Phone alerts not set up – tap ⚙ to connect your alert server.';
+  if(appMode()) line = $('srvOn').checked ? '🔔 Notifications from this app are on' : '🔕 Rain alerts off (this app)';
+  else if(!srvOK()) line = 'Phone alerts not set up – tap ⚙ to connect your alert server.';
   else if(!st) line = 'Alert server: connecting…';
   else{
     const s = st.settings;
@@ -1387,9 +1389,11 @@ function showSrvState(msg, cls){
 }
 
 async function refreshSrv(){
+  if(appMode()) fillAlertForm(store.get('appAlerts', {}));
   if(!srvOK()){ S.srvState=null; showSrvState(); return; }
   try{
     S.srvState = await srv('/status');
+    if(appMode()){ showSrvState(); return; }
     const s = S.srvState.settings;
     $('srvOn').checked = s.enabled; $('alertThresh').value = String(s.thresh);
     $('qStart').value = String(s.quietStart); $('qEnd').value = String(s.quietEnd); $('agree').value = String(s.agree || 2); $('sumOn').checked = s.summary !== false; $('sumHour').value = String(s.summaryHour || 7); $('eveOn').checked = s.evening !== false; $('eveHour').value = String(s.eveningHour || 17); $('warnOn').checked = s.warnAlerts !== false; $('warnRegion').value = s.warnRegion || 'auto';
@@ -1409,7 +1413,36 @@ function sendLocation(force){
   }, ()=>{}, {enableHighAccuracy:false, timeout:15000, maximumAge:120000});
 }
 
+// ---------- Android app: its own notifications ----------
+const IN_APP = !!window.RideWeatherAndroid;
+const appMode = () => IN_APP && store.get('appNoti', false);
+function alertForm(){
+  return {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value, summary:$('sumOn').checked, summaryHour:+$('sumHour').value, evening:$('eveOn').checked, eveningHour:+$('eveHour').value, warnAlerts:$('warnOn').checked, warnRegion:$('warnRegion').value};
+}
+function fillAlertForm(s){
+  $('srvOn').checked = s.enabled !== false; $('alertThresh').value = String(s.thresh || 0.1);
+  $('qStart').value = String(s.quietStart ?? 22); $('qEnd').value = String(s.quietEnd ?? 6); $('agree').value = String(s.agree || 2);
+  $('sumOn').checked = s.summary !== false; $('sumHour').value = String(s.summaryHour || 7); $('eveOn').checked = s.evening !== false;
+  $('eveHour').value = String(s.eveningHour || 17); $('warnOn').checked = s.warnAlerts !== false; $('warnRegion').value = s.warnRegion || 'auto';
+}
+function tellAndroidAlerts(){
+  if(!IN_APP) return;
+  const f = alertForm();
+  if(appMode()) store.set('appAlerts', f);
+  try{ RideWeatherAndroid.setAlerts(JSON.stringify({...f, appMode:appMode()})); }catch(e){}
+}
+window.appAlertResult = msg => showSrvState(msg, /couldn|blocked/i.test(msg) ? 'err' : 'okc');
+function appRun(kind, msg){ showSrvState(msg); try{ RideWeatherAndroid.runNow(kind); }catch(e){ showSrvState('Update the Android app to use this', 'err'); } }
+
 async function pushSettings(){
+  if(appMode()){
+    tellAndroidAlerts();
+    showSrvState('Saved ✓ – this app will send your notifications', 'okc');
+    // switch the alert server's notifications off so you don't get everything twice
+    if(srvOK()) try{ await srv('/settings', {...alertForm(), enabled:false, summary:false, evening:false, warnAlerts:false}); }catch(e){}
+    return;
+  }
+  if(IN_APP) tellAndroidAlerts();
   if(!srvOK()) return;
   try{
     const r = await srv('/settings', {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value, summary:$('sumOn').checked, summaryHour:+$('sumHour').value, evening:$('eveOn').checked, eveningHour:+$('eveHour').value, warnAlerts:$('warnOn').checked, warnRegion:$('warnRegion').value});
@@ -2013,7 +2046,7 @@ $('srvSave').onclick = async () => {
   S.srv = {url:$('srvUrl').value.trim(), key:$('srvKey').value.trim()}; store.set('srv', S.srv);
   await refreshSrv(); if(S.srvState){ showSrvState('Connected ✓', 'okc'); sendLocation(true); }
 };
-$('srvTest').onclick = async () => {
+$('srvTest').onclick = async () => { if(appMode()) return appRun('test', 'Sending test…');
   if(!srvOK()){ showSrvState('Enter the server address and key, then tap Save & connect first', 'err'); return; }
   showSrvState('Sending test…');
   try{
@@ -2022,14 +2055,25 @@ $('srvTest').onclick = async () => {
          : showSrvState(`Server reached, but ${r.service||'the alert service'} refused it: ${r.error||r.status||'unknown'}`, 'err');
   }catch(e){ showSrvState(`Couldn't reach your server: ${e.message}. Check the address (no /status on the end) and key.`, 'err'); }
 };
-$('srvCheck').onclick = async () => {
+$('srvCheck').onclick = async () => { if(appMode()) return appRun('check', 'Checking rain…');
   try{ const r = await srv('/check'); showSrvState(r.dry ? `Checked: dry for the next hour${r.models?' ('+r.models+')':''} – notification sent` : r.alerted ? `Checked: rain due (${r.agreeing} models agree) – alert sent` : (r.skipped || r.error || 'Checked'), 'okc'); }
   catch(e){ showSrvState(`Check failed (${e.message})`, 'err'); }
 };
 ['srvOn','alertThresh','qStart','qEnd','agree','sumOn','sumHour','eveOn','eveHour','warnOn'].forEach(id => $(id).onchange = pushSettings);
+if(IN_APP){
+  $('appNotiRow').hidden = false;
+  $('autoFs').closest('label').hidden = true;
+  $('appNoti').checked = appMode();
+  $('appNoti').onchange = async e => {
+    store.set('appNoti', e.target.checked);
+    if(e.target.checked){ if(!S.srvState) fillAlertForm(store.get('appAlerts', {})); store.set('appAlerts', alertForm()); await pushSettings(); }
+    else{ tellAndroidAlerts(); showSrvState(srvOK() ? 'App notifications off – the alert server (Pushover) will send them again' : 'App notifications off', 'okc'); if(srvOK()) try{ await srv('/settings', alertForm()); }catch(_){} }
+  };
+  if(appMode()){ fillAlertForm(store.get('appAlerts', {})); tellAndroidAlerts(); }
+}
 $('warnRegion').onchange = async () => { await pushSettings(); loadWarnings(); };
-$('eveNow').onclick = async () => { showSrvState('Sending evening update…'); try{ const r = await srv('/summary?kind=evening'); showSrvState(r.sent ? 'Evening update sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
-$('sumNow').onclick = async () => { showSrvState('Sending summary…'); try{ const r = await srv('/summary'); showSrvState(r.sent ? 'Summary sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
+$('eveNow').onclick = async () => { if(appMode()) return appRun('evening', 'Sending evening update…'); showSrvState('Sending evening update…'); try{ const r = await srv('/summary?kind=evening'); showSrvState(r.sent ? 'Evening update sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
+$('sumNow').onclick = async () => { if(appMode()) return appRun('morning', 'Sending summary…'); showSrvState('Sending summary…'); try{ const r = await srv('/summary'); showSrvState(r.sent ? 'Summary sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
 $('shareLoc').onchange = e => { S.share = e.target.checked; store.set('share', S.share); if(S.share) sendLocation(true); };
 
 // "My location": look up where you are again each time the app opens or comes back

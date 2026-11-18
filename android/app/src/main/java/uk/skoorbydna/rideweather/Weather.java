@@ -40,8 +40,23 @@ public class Weather {
     /** Download and save the latest data. Throws if the network fails. */
     static void fetch(Context c) throws Exception {
         SharedPreferences p = prefs(c);
-        double lat = p.getFloat("lat", 51.5074f), lon = p.getFloat("lon", -0.1278f);
         String name = p.getString("name", "London");
+        double[] ll = where(c);
+        double lat = ll[0], lon = ll[1];
+        String sLL = String.format(Locale.UK, "latitude=%.3f&longitude=%.3f", lat, lon);
+        String now = get(API + "?" + sLL + "&timezone=auto&wind_speed_unit=mph"
+                + "&current=temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m"
+                + "&daily=temperature_2m_max,temperature_2m_min&forecast_days=1");
+        String rain = get(API + "?" + sLL + "&timezone=auto&minutely_15=precipitation&past_minutely_15=1&forecast_minutely_15="
+                + (SLOTS + 1) + "&models=" + String.join(",", RAIN_MODELS));
+        p.edit().putString("cNow", now).putString("cRain", rain).putString("cName", name)
+                .putLong("fetchedAt", System.currentTimeMillis()).apply();
+    }
+
+    /** Where to forecast for: the app's place, or where you are now when it's set to My location. */
+    static double[] where(Context c) {
+        SharedPreferences p = prefs(c);
+        double lat = p.getFloat("lat", 51.5074f), lon = p.getFloat("lon", -0.1278f);
 
         if (p.getBoolean("gps", false)) {
             // "My location": use the newest of your alert server's location (OwnTracks) and the phone's last fix
@@ -61,15 +76,7 @@ public class Weather {
             if (dl != null && dl.getTime() > bestTs) { lat = dl.getLatitude(); lon = dl.getLongitude(); }
             p.edit().putFloat("gpsLat", (float) lat).putFloat("gpsLon", (float) lon).apply();
         }
-
-        String ll = String.format(Locale.UK, "latitude=%.3f&longitude=%.3f", lat, lon);
-        String now = get(API + "?" + ll + "&timezone=auto&wind_speed_unit=mph"
-                + "&current=temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m"
-                + "&daily=temperature_2m_max,temperature_2m_min&forecast_days=1");
-        String rain = get(API + "?" + ll + "&timezone=auto&minutely_15=precipitation&past_minutely_15=1&forecast_minutely_15="
-                + (SLOTS + 1) + "&models=" + String.join(",", RAIN_MODELS));
-        p.edit().putString("cNow", now).putString("cRain", rain).putString("cName", name)
-                .putLong("fetchedAt", System.currentTimeMillis()).apply();
+        return new double[]{lat, lon};
     }
 
     static boolean hasLoc(Context c) {

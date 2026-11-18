@@ -44,7 +44,14 @@ public class MainActivity extends Activity {
         s.setGeolocationEnabled(true);
         s.setUserAgentString(s.getUserAgentString() + " RideWeatherApp");
 
-        web.addJavascriptInterface(new Bridge(getApplicationContext(), () -> runOnUiThread(this::askBackground)), "RideWeatherAndroid");
+        web.addJavascriptInterface(new Bridge(getApplicationContext(),
+                () -> runOnUiThread(this::askBackground),
+                () -> runOnUiThread(this::askNotifications),
+                msg -> runOnUiThread(() -> web.evaluateJavascript(
+                        "window.appAlertResult&&appAlertResult(" + org.json.JSONObject.quote(msg) + ")", null))),
+                "RideWeatherAndroid");
+        Alerts.channels(this);
+        Alerts.schedule(this);
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -89,6 +96,13 @@ public class MainActivity extends Activity {
             geoCallback = null;
         }
         if (requestCode == 2) RainWidget.requestUpdate(this);
+    }
+
+    private void askNotifications() {
+        if (Build.VERSION.SDK_INT >= 33 && !Alerts.canNotify(this)) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 3);
+        }
+        askBackground();
     }
 
     /** The widget can only follow you if location is allowed "all the time". Ask once, with a reason. */
