@@ -235,6 +235,23 @@ body{font-family:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-w
 .subhead{border-top-color:rgba(255,255,255,.10)}
 footer{text-shadow:0 1px 6px rgba(0,0,0,.4)}
 header{background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03)),rgba(12,22,46,.45);-webkit-backdrop-filter:blur(18px) saturate(150%);backdrop-filter:blur(18px) saturate(150%);border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:12px;box-shadow:0 12px 32px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.18);margin-bottom:12px}
+/* top tile: brand left, date/time/sun right, search underneath; its own colour so it stands apart */
+header{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;column-gap:10px;row-gap:12px;padding:14px 14px 12px;
+  background:radial-gradient(130% 150% at 0% 0%,rgba(94,179,255,.42),transparent 55%),radial-gradient(130% 160% at 100% 100%,rgba(139,92,246,.36),transparent 60%),linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0)),rgba(20,36,78,.6);
+  border:1px solid rgba(147,197,253,.38);box-shadow:0 14px 36px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.28)}
+header .brand{min-width:0;gap:10px}
+header .appname{font-size:clamp(1.05rem,5.4vw,1.45rem);overflow:hidden;text-overflow:ellipsis}
+header .place{color:#cfe0ff}
+header .clock{text-align:right;padding-left:10px;border-left:1px solid rgba(255,255,255,.18)}
+header .cdate{color:#cfe0ff;font-size:.78rem}
+header .ctime{font-size:1.65rem;line-height:1.05;letter-spacing:-.01em}
+header .csun{color:#cfe0ff;font-size:.72rem;margin-top:2px}
+header .search{grid-column:1/-1}
+html.fs-xl header .logo,html.fs-l header .logo{width:2rem;height:2rem}
+html.fs-xl header .appname{font-size:1rem}
+html.fs-xl header .ctime{font-size:1.4rem}
+html.fs-xl header .cdate,html.fs-xl header .csun{font-size:.68rem}
+html.fs-xl header .brand{gap:8px}
 @media (prefers-reduced-motion: reduce){ #skyfx{display:none} }
 </style>
 </head>
@@ -255,7 +272,7 @@ header{background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,
       <div class="csun" id="cSun"></div>
     </div>
     <form class="search" id="searchForm">
-      <input id="q" placeholder="Search a town…" autocomplete="off">
+      <input id="q" placeholder="Search town…" autocomplete="off">
       <button class="btn primary" type="submit">Go</button>
       <div class="results" id="results" hidden></div>
       <button class="btn" type="button" id="locBtn" title="Forecast for my location">📍</button>
