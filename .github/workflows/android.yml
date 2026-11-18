@@ -1,0 +1,50 @@
+name: Build Android app
+
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Build APK
+        run: |
+          set -o pipefail
+          gradle -p android assembleRelease --stacktrace --no-daemon 2>&1 | tee build.log
+
+      - name: Publish APK to the "android" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk RideWeather.apk
+          gh release delete android-build-failed -y --cleanup-tag || true
+          gh release delete android -y --cleanup-tag || true
+          gh release create android RideWeather.apk --target "$GITHUB_SHA" \
+            --title "Ride Weather for Android (build ${GITHUB_RUN_NUMBER})" \
+            --notes "Download RideWeather.apk on your phone and open it to install or update. Built from ${GITHUB_SHA::7}."
+
+      - name: Report a failed build
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          { echo "Build ${GITHUB_RUN_NUMBER} failed at ${GITHUB_SHA::7}"; echo '```'; tail -c 100000 build.log 2>/dev/null || echo "no log"; echo '```'; } > notes.md
+          gh release delete android-build-failed -y --cleanup-tag || true
+          gh release create android-build-failed --prerelease --target "$GITHUB_SHA" --title "Android build failed" --notes-file notes.md

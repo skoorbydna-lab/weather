@@ -1,0 +1,37 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'uk.skoorbydna.rideweather'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'uk.skoorbydna.rideweather'
+        minSdk 26
+        targetSdk 35
+        versionCode (System.getenv('GITHUB_RUN_NUMBER') ? System.getenv('GITHUB_RUN_NUMBER').toInteger() : 1)
+        versionName '1.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('rideweather.jks')
+            storePassword 'rideweather'
+            keyAlias 'rideweather'
+            keyPassword 'rideweather'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_desc">Temperature, wind and the next 3 hours of rain (2 of 3 models)</string>
+</resources>
