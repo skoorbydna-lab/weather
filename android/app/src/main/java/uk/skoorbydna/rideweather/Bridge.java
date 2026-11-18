@@ -49,6 +49,11 @@ public class Bridge {
     public boolean isApp() { return true; }
 
     @JavascriptInterface
+    public String version() {
+        try { return ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionName; } catch (Exception e) { return ""; }
+    }
+
+    @JavascriptInterface
     public void setPlace(String json) {
         try {
             JSONObject o = new JSONObject(json);

@@ -107,6 +107,7 @@ button,select,input{font:inherit;color:inherit}
 .legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:4px;vertical-align:middle}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .between{justify-content:space-between}
+[hidden]{display:none!important}
 .switch{display:flex;align-items:center;gap:8px;cursor:pointer}
 .switch input{width:18px;height:18px}
 .window{font-size:1.05rem;font-weight:700}
@@ -282,6 +283,7 @@ header{background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,
 
     <h3>Phone rain alerts</h3>
     <div class="stack small">
+      <div class="muted" id="whereRun"></div>
       <label class="switch" id="appNotiRow" hidden><input type="checkbox" id="appNoti"> <b>Send notifications from this app</b> (no Pushover or alert server needed)</label>
       <input class="field" id="srvUrl" placeholder="Alert server URL, e.g. https://ride-rain.yourname.workers.dev" style="width:100%">
       <input class="field" id="srvKey" placeholder="Secret key" style="width:100%" type="password">
@@ -1431,8 +1433,8 @@ function tellAndroidAlerts(){
   if(appMode()) store.set('appAlerts', f);
   try{ RideWeatherAndroid.setAlerts(JSON.stringify({...f, appMode:appMode()})); }catch(e){}
 }
-window.appAlertResult = msg => showSrvState(msg, /couldn|blocked/i.test(msg) ? 'err' : 'okc');
-function appRun(kind, msg){ showSrvState(msg); try{ RideWeatherAndroid.runNow(kind); }catch(e){ showSrvState('Update the Android app to use this', 'err'); } }
+window.appAlertResult = msg => { showSrvState(msg, /couldn|blocked/i.test(msg) ? 'err' : 'okc'); $('srvStatus').scrollIntoView({block:'center', behavior:'smooth'}); };
+function appRun(kind, msg){ showSrvState(msg); $('srvStatus').scrollIntoView({block:'center', behavior:'smooth'}); try{ RideWeatherAndroid.runNow(kind); }catch(e){ showSrvState('Update the Android app to use this', 'err'); } }
 
 async function pushSettings(){
   if(appMode()){
@@ -2060,9 +2062,12 @@ $('srvCheck').onclick = async () => { if(appMode()) return appRun('check', 'Chec
   catch(e){ showSrvState(`Check failed (${e.message})`, 'err'); }
 };
 ['srvOn','alertThresh','qStart','qEnd','agree','sumOn','sumHour','eveOn','eveHour','warnOn'].forEach(id => $(id).onchange = pushSettings);
+if(!IN_APP) $('whereRun').textContent = '🌐 Web version (browser) – alerts here go through your alert server and Pushover';
 if(IN_APP){
   $('appNotiRow').hidden = false;
   $('autoFs').closest('label').hidden = true;
+  let ver = ''; try{ ver = RideWeatherAndroid.version(); }catch(e){}
+  $('whereRun').textContent = '📱 Ride Weather Android app' + (ver ? ' ' + ver : '');
   $('appNoti').checked = appMode();
   $('appNoti').onchange = async e => {
     store.set('appNoti', e.target.checked);
