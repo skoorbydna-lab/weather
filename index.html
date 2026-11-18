@@ -368,8 +368,8 @@ html.fs-xl header .brand{gap:8px}
     <h2 class="foldhead"><span>Raincast</span><span class="small" id="rcHead" style="margin-left:auto;text-transform:none;letter-spacing:0;font-weight:700"></span><span class="chev">▾</span></h2>
     <div class="foldbody">
       <div class="rcwrap">
-        <svg id="rcAxis" width="30" height="96"></svg>
-        <div class="rcscroll" id="rcScroll"><svg id="rcChart" height="96"></svg></div>
+        <svg id="rcAxis" width="30" height="66"></svg>
+        <div class="rcscroll" id="rcScroll"><svg id="rcChart" height="66"></svg></div>
       </div>
     </div>
   </section>
@@ -907,17 +907,17 @@ function raincastBars(){
 }
 function renderRaincast(){
   const bars = raincastBars(), chart = $('rcChart'), axis = $('rcAxis'), box = $('rcScroll');
-  const H = 96, T = 9, B = 17, ph = H-T-B, y = v => H-B-Math.min(v,RC_MAX)/RC_MAX*ph;
+  const H = 66, T = 7, B = 16, ph = H-T-B, y = v => H-B-Math.min(v,RC_MAX)/RC_MAX*ph;
   // fixed scale on the left
   let a = '';
-  for(let v=0; v<=RC_MAX; v+=2) a += `<text x="26" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${v}</text>`;
+  for(let v=0; v<=RC_MAX; v+=3) a += `<text x="26" y="${y(v)+3}" text-anchor="end" font-size="9" fill="var(--muted)">${v}</text>`;
   axis.innerHTML = a;
-  if(!bars.length){ chart.setAttribute('width', 200); chart.innerHTML = `<text x="10" y="45" font-size="11" fill="var(--muted)">No 15-minute data</text>`; $('rcHead').textContent=''; return; }
+  if(!bars.length){ chart.setAttribute('width', 200); chart.innerHTML = `<text x="10" y="32" font-size="11" fill="var(--muted)">No 15-minute data</text>`; $('rcHead').textContent=''; return; }
   const visible = Math.max(200, box.clientWidth || 300), slot = visible/24, W = Math.round(slot*bars.length);
   chart.setAttribute('width', W);
   const fmt = ms => new Date(ms + OFFSET*1000).toISOString().slice(11,16);
   let g = '';
-  for(let v=0; v<=RC_MAX; v+=2) g += `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" ${v? 'stroke-dasharray="2 4"' : ''}/>`;
+  for(let v=0; v<=RC_MAX; v+=3) g += `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" ${v? 'stroke-dasharray="2 4"' : ''}/>`;
   bars.forEach((b,i) => {
     const x = i*slot, mins = new Date(b.start + OFFSET*1000).getUTCMinutes();
     if(mins % 15 === 0){

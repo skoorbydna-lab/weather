@@ -80,7 +80,7 @@ public class MainActivity extends Activity {
         });
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
-        else web.loadUrl(APP_URL);
+        else web.loadUrl(APP_URL + "?v=" + System.currentTimeMillis() / 60000);   // always the newest page
         hideBars();
     }
 
