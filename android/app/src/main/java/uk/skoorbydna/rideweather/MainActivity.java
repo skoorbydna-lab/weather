@@ -42,6 +42,7 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
         s.setGeolocationEnabled(true);
+        s.setTextZoom(100);   // ignore the phone's font size – the app's own S/M/L/XL setting decides
         s.setUserAgentString(s.getUserAgentString() + " RideWeatherApp");
 
         web.addJavascriptInterface(new Bridge(getApplicationContext(),
