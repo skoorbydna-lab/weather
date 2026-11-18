@@ -9,8 +9,9 @@ import org.json.JSONObject;
 /** Called from the web page (window.RideWeatherAndroid) to tell the widget which place to show. */
 public class Bridge {
     private final Context ctx;
+    private final Runnable onGps;
 
-    Bridge(Context ctx) { this.ctx = ctx; }
+    Bridge(Context ctx, Runnable onGps) { this.ctx = ctx; this.onGps = onGps; }
 
     @JavascriptInterface
     public boolean isApp() { return true; }
@@ -33,6 +34,7 @@ public class Bridge {
                     .putString("srv", o.optString("srv", "")).putString("key", o.optString("key", ""))
                     .apply();
             long age = System.currentTimeMillis() - p.getLong("fetchedAt", 0);
+            if (gps && onGps != null) onGps.run();
             if (changed) RainWidget.requestUpdate(ctx);
             else if (age > 15 * 60_000L) RainWidget.requestUpdate(ctx);
         } catch (Exception ignored) { }

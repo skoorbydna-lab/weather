@@ -2,6 +2,8 @@ package uk.skoorbydna.rideweather;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -42,7 +44,7 @@ public class MainActivity extends Activity {
         s.setGeolocationEnabled(true);
         s.setUserAgentString(s.getUserAgentString() + " RideWeatherApp");
 
-        web.addJavascriptInterface(new Bridge(getApplicationContext()), "RideWeatherAndroid");
+        web.addJavascriptInterface(new Bridge(getApplicationContext(), () -> runOnUiThread(this::askBackground)), "RideWeatherAndroid");
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -86,6 +88,22 @@ public class MainActivity extends Activity {
             geoCallback.invoke(geoOrigin, hasLocation(), false);
             geoCallback = null;
         }
+        if (requestCode == 2) RainWidget.requestUpdate(this);
+    }
+
+    /** The widget can only follow you if location is allowed "all the time". Ask once, with a reason. */
+    private void askBackground() {
+        if (Build.VERSION.SDK_INT < 29 || isFinishing() || !hasLocation()) return;
+        if (Weather.hasBackgroundLoc(this)) return;
+        SharedPreferences p = Weather.prefs(this);
+        if (p.getBoolean("askedBg", false)) return;
+        p.edit().putBoolean("askedBg", true).apply();
+        new AlertDialog.Builder(this)
+                .setTitle("Let the widget follow you?")
+                .setMessage("So the home-screen widget shows the weather where you are, choose \"Allow all the time\" on the next screen.")
+                .setPositiveButton("Continue", (d, w) -> requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 2))
+                .setNegativeButton("Not now", null)
+                .show();
     }
 
     @SuppressWarnings("deprecation")
@@ -128,6 +146,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.onResume();
+        RainWidget.requestUpdate(this);   // keep the widget in step whenever you open the app
         // back after a while: get a fresh forecast
         if (pausedAt > 0 && System.currentTimeMillis() - pausedAt > 10 * 60_000L) {
             web.evaluateJavascript("try{load()}catch(e){}", null);

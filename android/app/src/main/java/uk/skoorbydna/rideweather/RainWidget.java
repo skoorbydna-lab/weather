@@ -100,7 +100,10 @@ public class RainWidget extends AppWidgetProvider {
         double f = kmh ? 1.609344 : 1;
         String u = kmh ? "km/h" : "mph";
 
-        v.setTextViewText(R.id.place, d.name);
+        boolean follow = Weather.prefs(c).getBoolean("gps", false);
+        String place = follow ? "📍 " + d.name : d.name;
+        if (follow && !Weather.hasBackgroundLoc(c)) place += " (open app to update)";
+        v.setTextViewText(R.id.place, place);
         String at = new SimpleDateFormat("HH:mm", Locale.UK).format(new Date(d.fetchedAt));
         v.setTextViewText(R.id.updated, err != null ? err + " · " + at : at);
         v.setTextViewText(R.id.icon, d.icon);

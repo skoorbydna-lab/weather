@@ -2032,8 +2032,19 @@ $('eveNow').onclick = async () => { showSrvState('Sending evening update…'); t
 $('sumNow').onclick = async () => { showSrvState('Sending summary…'); try{ const r = await srv('/summary'); showSrvState(r.sent ? 'Summary sent – check Pushover' : (r.skipped || r.error || 'Not sent – update the Worker code?'), r.sent ? 'okc' : 'err'); }catch(e){ showSrvState(`Couldn't send (${e.message}) – update the Worker code first`, 'err'); } };
 $('shareLoc').onchange = e => { S.share = e.target.checked; store.set('share', S.share); if(S.share) sendLocation(true); };
 
+// "My location": look up where you are again each time the app opens or comes back
+function refreshMyLoc(){
+  if(S.loc.name!=='My location' || !navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p => {
+    const lat = +p.coords.latitude.toFixed(4), lon = +p.coords.longitude.toFixed(4);
+    const km = Math.hypot(lat - S.loc.lat, (lon - S.loc.lon) * Math.cos(lat*Math.PI/180)) * 111;
+    if(km > 0.5) setLoc({name:'My location', lat, lon});
+  }, () => {}, {enableHighAccuracy:false, timeout:10000, maximumAge:5*60000});
+}
+
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState==='visible'){
+    refreshMyLoc();
     if(S.main && Date.now() - S.loadedAt > 5*60000) load(); else sendLocation();
     refreshSrv();
   }
@@ -2061,6 +2072,7 @@ fsLabel();
 
 histInit();
 load();
+refreshMyLoc();
 refreshSrv();
 if(FOLD.map) setTimeout(showMap, 300);
 if(FOLD.hist) setTimeout(loadHistory, 1500);

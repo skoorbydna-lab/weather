@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.Build;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -21,6 +22,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /** Fetches the forecast for the widget from Open-Meteo, using the same 2-of-3 rain rule as the web app. */
 public class Weather {
@@ -52,8 +56,10 @@ public class Weather {
                     }
                 } catch (Exception ignored) { }
             }
-            Location dl = lastKnown(c);
+            Location dl = freshLocation(c);
+            if (dl == null) dl = lastKnown(c);
             if (dl != null && dl.getTime() > bestTs) { lat = dl.getLatitude(); lon = dl.getLongitude(); }
+            p.edit().putFloat("gpsLat", (float) lat).putFloat("gpsLon", (float) lon).apply();
         }
 
         String ll = String.format(Locale.UK, "latitude=%.3f&longitude=%.3f", lat, lon);
@@ -64,6 +70,36 @@ public class Weather {
                 + (SLOTS + 1) + "&models=" + String.join(",", RAIN_MODELS));
         p.edit().putString("cNow", now).putString("cRain", rain).putString("cName", name)
                 .putLong("fetchedAt", System.currentTimeMillis()).apply();
+    }
+
+    static boolean hasLoc(Context c) {
+        return c.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || c.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    static boolean hasBackgroundLoc(Context c) {
+        return Build.VERSION.SDK_INT < 29
+                || c.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** Ask the phone for a new fix (up to 6 s). Needs "Allow all the time" when the app isn't open. */
+    static Location freshLocation(Context c) {
+        if (!hasLoc(c) || Build.VERSION.SDK_INT < 30) return null;
+        try {
+            LocationManager lm = (LocationManager) c.getSystemService(Context.LOCATION_SERVICE);
+            List<String> on = lm.getProviders(true);
+            String prov = Build.VERSION.SDK_INT >= 31 && on.contains(LocationManager.FUSED_PROVIDER) ? LocationManager.FUSED_PROVIDER
+                    : on.contains(LocationManager.NETWORK_PROVIDER) ? LocationManager.NETWORK_PROVIDER
+                    : on.contains(LocationManager.GPS_PROVIDER) ? LocationManager.GPS_PROVIDER : null;
+            if (prov == null) return null;
+            final Location[] got = new Location[1];
+            final CountDownLatch done = new CountDownLatch(1);
+            lm.getCurrentLocation(prov, null, Executors.newSingleThreadExecutor(), loc -> { got[0] = loc; done.countDown(); });
+            done.await(6, TimeUnit.SECONDS);
+            return got[0];
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     static Location lastKnown(Context c) {
