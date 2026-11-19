@@ -59,7 +59,7 @@ public class RainTileService extends TileService {
         WData d = WData.load(this);
         if (d != null) {
             float dens = getResources().getDisplayMetrics().density;
-            int bw = Math.round(150 * dens), bh = Math.round(40 * dens), as = Math.round(24 * dens);
+            int bw = Math.round(130 * dens), bh = Math.round(36 * dens), as = Math.round(24 * dens);
             b.addIdToImageMapping("bars", image(WData.png(d.bars(bw, bh, dens)), bw, bh));
             b.addIdToImageMapping("arrow", image(WData.png(WData.arrow(as, d.dir, WData.windColour(d.wind))), as, as));
         }
@@ -114,11 +114,11 @@ public class RainTileService extends TileService {
                     .build());
             col.addContent(text(d.desc, 12, 0xFFDDE7FA, false));
             col.addContent(gap(6));
+            col.addContent(text(d.shortRainLine(), 14, d.wetSoon() ? 0xFF7DB8FF : 0xFF4ADE80, true));
+            col.addContent(gap(3));
             col.addContent(new LayoutElementBuilders.Image.Builder().setResourceId("bars")
-                    .setWidth(DimensionBuilders.dp(150)).setHeight(DimensionBuilders.dp(40))
+                    .setWidth(DimensionBuilders.dp(130)).setHeight(DimensionBuilders.dp(36))
                     .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS).build());
-            col.addContent(gap(4));
-            col.addContent(text(d.rainLine(), 13, d.wetSoon() ? 0xFF7DB8FF : 0xFF4ADE80, true));
         }
         ModifiersBuilders.Clickable open = new ModifiersBuilders.Clickable.Builder()
                 .setId("open")

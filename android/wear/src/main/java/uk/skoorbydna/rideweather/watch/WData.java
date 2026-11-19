@@ -257,9 +257,25 @@ public class WData {
         }
         if (!any) return "No rain data";
         if (first < 0) return "Dry for 3 hours";
-        String from = first == 0 ? "Rain now" : "Rain " + times[first];
         String mm = String.format(Locale.UK, "%.1f mm", total);
-        return end > 0 ? from + "–" + times[end] + " · " + mm : from + " · " + mm;
+        if (first == 0) return (end > 0 ? "Rain until " + times[end] : "Rain for 3 h+") + " · " + mm;
+        return "Rain " + times[first] + (end > 0 ? "–" + times[end] : "") + " · " + mm;
+    }
+
+    /** Very short version for the tile, where the round screen is narrow. */
+    String shortRainLine() {
+        int first = -1, end = -1;
+        boolean any = false;
+        for (int i = 0; i < SLOTS; i++) {
+            if (Double.isNaN(rain[i])) continue;
+            any = true;
+            if (rain[i] >= WET) { if (first < 0) first = i; }
+            else if (first >= 0 && end < 0) end = i;
+        }
+        if (!any) return "No rain data";
+        if (first < 0) return "Dry for 3 hours";
+        if (first == 0) return end > 0 ? "Rain until " + times[end] : "Rain for 3 h+";
+        return "Rain from " + times[first];
     }
 
     boolean wetSoon() {
