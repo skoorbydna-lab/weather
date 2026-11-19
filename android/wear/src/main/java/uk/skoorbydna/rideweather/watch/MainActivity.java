@@ -206,7 +206,7 @@ public class MainActivity extends Activity {
         wind.addView(ws);
         col.addView(wind);
         col.addView(text("gusts " + Math.round(d.gust) + " mph", 12, MUTED, false));
-        TextView hint = text("Ring: rain in the next hour", 10, MUTED, false);
+        TextView hint = text("Ring: next 60 min of rain, from 12 o'clock", 10, MUTED, false);
         hint.setPadding(0, dp(6), 0, 0);
         col.addView(hint);
 

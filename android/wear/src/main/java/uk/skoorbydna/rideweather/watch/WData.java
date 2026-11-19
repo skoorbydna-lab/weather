@@ -373,7 +373,8 @@ public class WData {
         return 0xFF000000 | ((int) a[1] << 16) | ((int) a[2] << 8) | (int) a[3];
     }
 
-    /** Rain in the next hour as 12 five-minute dashes round the edge, placed like a clock's minute hand. */
+    /** Rain in the next hour as 12 five-minute dashes round the edge, countdown style:
+     *  12 o'clock is now, going clockwise – a quarter of the way round is "in 15 minutes". */
     static void drawRing(Canvas cv, int size, float dens, WData d) {
         float stroke = 7 * dens, inset = stroke / 2 + 2 * dens;
         RectF r = new RectF(inset, inset, size - inset, size - inset);
@@ -382,21 +383,18 @@ public class WData {
         p.setStrokeWidth(stroke);
         p.setStrokeCap(Paint.Cap.BUTT);
         long now = System.currentTimeMillis();
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        float minute = cal.get(java.util.Calendar.MINUTE) + cal.get(java.util.Calendar.SECOND) / 60f;
         for (int j = 0; j < 12; j++) {
             double rate = d == null ? Double.NaN : d.rateAt(now + j * 5 * 60_000L + 150_000L);
             boolean wet = !Double.isNaN(rate) && rate >= 0.2;
             p.setColor(wet ? rainColour(rate) : 0x40FFFFFF);
-            float start = -90 + (minute + 5 * j) * 6 + 2.2f;
-            cv.drawArc(r, start, 25.6f, false, p);
+            cv.drawArc(r, -90 + 30 * j + 2.2f, 25.6f, false, p);
         }
-        // "now" marker
-        double a = Math.toRadians(-90 + minute * 6);
-        float rad = (size - 2 * inset) / 2f, cx = size / 2f, cy = size / 2f;
-        Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
-        dot.setColor(0xFFFFFFFF);
-        cv.drawCircle(cx + (float) (rad * Math.cos(a)), cy + (float) (rad * Math.sin(a)), stroke * 0.7f, dot);
+        // small white mark at 12 o'clock = now
+        Paint mark = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mark.setColor(0xFFFFFFFF);
+        mark.setStrokeWidth(2.5f * dens);
+        mark.setStrokeCap(Paint.Cap.ROUND);
+        cv.drawLine(size / 2f, inset - stroke / 2 - dens, size / 2f, inset + stroke / 2 + dens, mark);
     }
 
     static Bitmap ring(int size, float dens, WData d) {
