@@ -150,6 +150,7 @@ public class WData {
     double temp, feels, wind, gust, dir, hi = Double.NaN, lo = Double.NaN;
     double[] rain = new double[SLOTS];
     String[] times = new String[SLOTS];
+    long[] starts = new long[SLOTS];      // slot start, epoch ms
     List<Hour> hours = new ArrayList<>();
     List<Day> days = new ArrayList<>();
 
@@ -226,6 +227,7 @@ public class WData {
                         if (a != null && !a.isNull(i)) vals.add(a.optDouble(i));
                     }
                     d.rain[k] = agree(vals);
+                    d.starts[k] = ms - 15 * 60_000L;
                     d.times[k] = LocalDateTime.parse(ts).minusMinutes(15).toString().substring(11, 16);
                     k++;
                 }
@@ -368,6 +370,62 @@ public class WData {
             a = b;
         }
         return 0xFF000000 | ((int) a[1] << 16) | ((int) a[2] << 8) | (int) a[3];
+    }
+
+    /** Rain in the next hour as 12 five-minute dashes round the edge, placed like a clock's minute hand. */
+    static void drawRing(Canvas cv, int size, float dens, WData d) {
+        float stroke = 7 * dens, inset = stroke / 2 + 2 * dens;
+        RectF r = new RectF(inset, inset, size - inset, size - inset);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(stroke);
+        p.setStrokeCap(Paint.Cap.BUTT);
+        long now = System.currentTimeMillis();
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        float minute = cal.get(java.util.Calendar.MINUTE) + cal.get(java.util.Calendar.SECOND) / 60f;
+        for (int j = 0; j < 12; j++) {
+            double rate = d == null ? Double.NaN : d.rateAt(now + j * 5 * 60_000L + 150_000L);
+            boolean wet = !Double.isNaN(rate) && rate >= 0.2;
+            p.setColor(wet ? rainColour(rate) : 0x40FFFFFF);
+            float start = -90 + (minute + 5 * j) * 6 + 2.2f;
+            cv.drawArc(r, start, 25.6f, false, p);
+        }
+        // "now" marker
+        double a = Math.toRadians(-90 + minute * 6);
+        float rad = (size - 2 * inset) / 2f, cx = size / 2f, cy = size / 2f;
+        Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
+        dot.setColor(0xFFFFFFFF);
+        cv.drawCircle(cx + (float) (rad * Math.cos(a)), cy + (float) (rad * Math.sin(a)), stroke * 0.7f, dot);
+    }
+
+    static Bitmap ring(int size, float dens, WData d) {
+        Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        drawRing(new Canvas(b), size, dens, d);
+        return b;
+    }
+
+    /** Agreed rain rate (mm/h) at a moment, from the 15-minute slots. */
+    double rateAt(long t) {
+        for (int k = 0; k < SLOTS; k++) {
+            if (starts[k] == 0) continue;
+            if (t >= starts[k] && t < starts[k] + 15 * 60_000L) return Double.isNaN(rain[k]) ? Double.NaN : rain[k] * 4;
+        }
+        return Double.NaN;
+    }
+
+    // ---------- complication text ----------
+    /** Short slot: big text + small title, e.g. "6°" / "Dry", "19:30" / "Rain", "18:45" / "Stops". */
+    String[] complication() {
+        int first = -1, end = -1;
+        for (int i = 0; i < SLOTS; i++) {
+            if (Double.isNaN(rain[i])) continue;
+            if (rain[i] >= WET) { if (first < 0) first = i; }
+            else if (first >= 0 && end < 0) end = i;
+        }
+        String t = Math.round(temp) + "°";
+        if (first < 0) return new String[]{t, "Dry"};
+        if (first == 0) return end > 0 ? new String[]{times[end], "Stops"} : new String[]{t, "Rain"};
+        return new String[]{times[first], "Rain"};
     }
 
     static byte[] png(Bitmap b) {

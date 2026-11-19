@@ -30,6 +30,15 @@ public class MainActivity extends Activity {
     private float dens;
     private int screenW;
     private boolean loading;
+    private View ring;
+    private WData current;
+
+    /** move the ring with the clock every minute */
+    private void tick() {
+        if (ring == null) return;
+        ring.invalidate();
+        ring.postDelayed(this::tick, 60_000L);
+    }
 
     @Override
     protected void onCreate(Bundle b) {
@@ -47,7 +56,18 @@ public class MainActivity extends Activity {
         int side = (int) (screenW * 0.12);
         col.setPadding(side, (int) (screenW * 0.10), side, (int) (screenW * 0.22));
         scroll.addView(col);
-        setContentView(scroll);
+        // the rain ring stays fixed round the edge while the page scrolls underneath
+        android.widget.FrameLayout root = new android.widget.FrameLayout(this);
+        root.addView(scroll);
+        ring = new View(this) {
+            @Override
+            protected void onDraw(android.graphics.Canvas cv) {
+                WData.drawRing(cv, Math.min(getWidth(), getHeight()), dens, current);
+            }
+        };
+        root.addView(ring);
+        setContentView(root);
+        tick();
         scroll.requestFocus();
 
         RefreshJob.schedule(this);
@@ -139,6 +159,8 @@ public class MainActivity extends Activity {
     }
 
     private void render(WData d) {
+        current = d;
+        if (ring != null) ring.invalidate();
         col.removeAllViews();
 
         TextView place = text(d != null ? d.name : "Ride Weather", 14, Color.WHITE, true);
@@ -184,6 +206,9 @@ public class MainActivity extends Activity {
         wind.addView(ws);
         col.addView(wind);
         col.addView(text("gusts " + Math.round(d.gust) + " mph", 12, MUTED, false));
+        TextView hint = text("Ring: rain in the next hour", 10, MUTED, false);
+        hint.setPadding(0, dp(6), 0, 0);
+        col.addView(hint);
 
         // rain next 3 hours
         heading("RAIN · NEXT 3 HOURS");

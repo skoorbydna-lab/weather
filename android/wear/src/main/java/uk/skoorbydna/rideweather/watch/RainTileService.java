@@ -26,6 +26,7 @@ public class RainTileService extends TileService {
 
     static void update(Context c) {
         try { TileService.getUpdater(c).requestUpdate(RainTileService.class); } catch (Exception ignored) { }
+        RainComplicationService.update(c);
     }
 
     @Override
@@ -43,11 +44,11 @@ public class RainTileService extends TileService {
                 try { WData.fetch(app); update(app); } catch (Exception ignored) { }
             }).start();
         }
-        LayoutElementBuilders.LayoutElement root = layout(d);
-        String ver = d == null ? "none" : String.valueOf(d.fetchedAt);
+        LayoutElementBuilders.LayoutElement root = layout(d, screenDp(req.getDeviceConfiguration()));
+        String ver = d == null ? "none" : d.fetchedAt + "-" + (System.currentTimeMillis() / 300_000L);
         TileBuilders.Tile tile = new TileBuilders.Tile.Builder()
                 .setResourcesVersion(ver)
-                .setFreshnessIntervalMillis(15 * 60_000L)
+                .setFreshnessIntervalMillis(5 * 60_000L)
                 .setTileTimeline(TimelineBuilders.Timeline.fromLayoutElement(root))
                 .build();
         return Futures.immediateFuture(tile);
@@ -59,8 +60,8 @@ public class RainTileService extends TileService {
         WData d = WData.load(this);
         if (d != null) {
             float dens = getResources().getDisplayMetrics().density;
-            int bw = Math.round(130 * dens), bh = Math.round(36 * dens), as = Math.round(24 * dens);
-            b.addIdToImageMapping("bars", image(WData.png(d.bars(bw, bh, dens)), bw, bh));
+            int as = Math.round(24 * dens), rs = Math.round(screenDp(req.getDeviceConfiguration()) * dens);
+            b.addIdToImageMapping("ring", image(WData.png(WData.ring(rs, dens, d)), rs, rs));
             b.addIdToImageMapping("arrow", image(WData.png(WData.arrow(as, d.dir, WData.windColour(d.wind))), as, as));
         }
         return Futures.immediateFuture(b.build());
@@ -89,7 +90,11 @@ public class RainTileService extends TileService {
         return new LayoutElementBuilders.Spacer.Builder().setHeight(DimensionBuilders.dp(dp)).build();
     }
 
-    private LayoutElementBuilders.LayoutElement layout(WData d) {
+    static float screenDp(androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters dp) {
+        try { int w = dp.getScreenWidthDp(); return w > 0 ? w : 192; } catch (Exception e) { return 192; }
+    }
+
+    private LayoutElementBuilders.LayoutElement layout(WData d, float screen) {
         LayoutElementBuilders.Column.Builder col = new LayoutElementBuilders.Column.Builder()
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER);
         if (d == null) {
@@ -102,7 +107,7 @@ public class RainTileService extends TileService {
             col.addContent(gap(2));
             col.addContent(new LayoutElementBuilders.Row.Builder()
                     .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                    .addContent(text(Math.round(d.temp) + "°", 34, 0xFFFFFFFF, true))
+                    .addContent(text(Math.round(d.temp) + "°", 36, 0xFFFFFFFF, true))
                     .addContent(new LayoutElementBuilders.Spacer.Builder().setWidth(DimensionBuilders.dp(10)).build())
                     .addContent(new LayoutElementBuilders.Image.Builder().setResourceId("arrow")
                             .setWidth(DimensionBuilders.dp(24)).setHeight(DimensionBuilders.dp(24)).build())
@@ -115,10 +120,8 @@ public class RainTileService extends TileService {
             col.addContent(text(d.desc, 12, 0xFFDDE7FA, false));
             col.addContent(gap(6));
             col.addContent(text(d.shortRainLine(), 14, d.wetSoon() ? 0xFF7DB8FF : 0xFF4ADE80, true));
-            col.addContent(gap(3));
-            col.addContent(new LayoutElementBuilders.Image.Builder().setResourceId("bars")
-                    .setWidth(DimensionBuilders.dp(130)).setHeight(DimensionBuilders.dp(36))
-                    .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FILL_BOUNDS).build());
+            col.addContent(gap(2));
+            col.addContent(text("next hour round the edge", 10, 0xFF9FB2D6, false));
         }
         ModifiersBuilders.Clickable open = new ModifiersBuilders.Clickable.Builder()
                 .setId("open")
@@ -129,13 +132,14 @@ public class RainTileService extends TileService {
                                 .build())
                         .build())
                 .build();
-        return new LayoutElementBuilders.Box.Builder()
+        LayoutElementBuilders.Box.Builder box = new LayoutElementBuilders.Box.Builder()
                 .setWidth(DimensionBuilders.expand())
                 .setHeight(DimensionBuilders.expand())
                 .setHorizontalAlignment(LayoutElementBuilders.HORIZONTAL_ALIGN_CENTER)
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
-                .setModifiers(new ModifiersBuilders.Modifiers.Builder().setClickable(open).build())
-                .addContent(col.build())
-                .build();
+                .setModifiers(new ModifiersBuilders.Modifiers.Builder().setClickable(open).build());
+        if (d != null) box.addContent(new LayoutElementBuilders.Image.Builder().setResourceId("ring")
+                .setWidth(DimensionBuilders.dp(screen)).setHeight(DimensionBuilders.dp(screen)).build());
+        return box.addContent(col.build()).build();
     }
 }

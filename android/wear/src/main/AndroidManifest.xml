@@ -40,6 +40,19 @@
         </service>
 
         <service
+            android:name=".RainComplicationService"
+            android:exported="true"
+            android:label="Ride Weather rain"
+            android:icon="@drawable/ic_rain"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data android:name="android.support.wearable.complications.SUPPORTED_TYPES" android:value="SHORT_TEXT,LONG_TEXT" />
+            <meta-data android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS" android:value="600" />
+        </service>
+
+        <service
             android:name=".RefreshJob"
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:exported="false" />

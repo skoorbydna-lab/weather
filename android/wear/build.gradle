@@ -40,4 +40,5 @@ dependencies {
     implementation 'androidx.wear.tiles:tiles:1.4.1'
     implementation 'androidx.wear.protolayout:protolayout:1.2.1'
     implementation 'com.google.guava:guava:33.3.1-android'
+    implementation 'androidx.wear.watchface:watchface-complications-data-source:1.2.1'
 }
