@@ -20,9 +20,10 @@ import androidx.wear.watchface.complications.datasource.ComplicationRequest;
 public class RainComplicationService extends ComplicationDataSourceService {
 
     static void update(Context c) {
-        try {
-            ComplicationDataSourceUpdateRequester.create(c, new ComponentName(c, RainComplicationService.class)).requestUpdateAll();
-        } catch (Exception ignored) { }
+        for (Class<?> k : new Class<?>[]{RainComplicationService.class, WindComplicationService.class,
+                TempComplicationService.class, RideComplicationService.class}) {
+            try { ComplicationDataSourceUpdateRequester.create(c, new ComponentName(c, k)).requestUpdateAll(); } catch (Exception ignored) { }
+        }
     }
 
     private static PlainComplicationText t(String s) { return new PlainComplicationText.Builder(s).build(); }

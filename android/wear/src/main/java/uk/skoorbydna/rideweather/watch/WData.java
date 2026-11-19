@@ -142,7 +142,7 @@ public class WData {
     }
 
     // ---------- parsed data ----------
-    static class Hour { String time, icon; double temp, rain, prob, wind, dir; }
+    static class Hour { String time, icon; double temp, rain, prob, wind, dir; boolean day; }
     static class Day { String name, icon; double max, min, rain, prob; }
 
     String name, desc, icon, sunrise, sunset;
@@ -182,6 +182,7 @@ public class WData {
                     x.time = t.getString(i).substring(11, 16);
                     x.temp = h.getJSONArray("temperature_2m").optDouble(i);
                     x.icon = icon(h.getJSONArray("weather_code").optInt(i, 3), h.getJSONArray("is_day").optInt(i, 1) == 1);
+                    x.day = h.getJSONArray("is_day").optInt(i, 1) == 1;
                     x.rain = h.getJSONArray("precipitation").optDouble(i);
                     x.prob = h.getJSONArray("precipitation_probability").optDouble(i);
                     x.wind = h.getJSONArray("wind_speed_10m").optDouble(i);
@@ -411,6 +412,29 @@ public class WData {
             if (t >= starts[k] && t < starts[k] + 15 * 60_000L) return Double.isNaN(rain[k]) ? Double.NaN : rain[k] * 4;
         }
         return Double.NaN;
+    }
+
+    /** Best 2-hour daylight window in the next 12 hours (same idea as the phone's best ride), or null. */
+    String[] bestRide() {
+        int best = -1;
+        double bv = 1e9;
+        for (int n = 0; n + 1 < hours.size(); n++) {
+            Hour a = hours.get(n), b = hours.get(n + 1);
+            if (!a.day || !b.day) continue;
+            double v = (score(a) + score(b)) / 2;
+            if (v < bv) { bv = v; best = n; }
+        }
+        if (best < 0) return null;
+        String from = hours.get(best).time;
+        int h = Integer.parseInt(from.substring(0, 2));
+        return new String[]{from, String.format(Locale.UK, "%02d:00", (h + 2) % 24)};
+    }
+
+    static double score(Hour x) {
+        double p = Double.isNaN(x.rain) ? 0 : x.rain, w = Double.isNaN(x.wind) ? 0 : x.wind;
+        double sc = p * 3 + (Double.isNaN(x.prob) ? (p > 0 ? 1 : 0) : x.prob * 0.02) + Math.max(0, w - 8) * 0.25;
+        if (!Double.isNaN(x.temp) && x.temp < 3) sc += (3 - x.temp) * 0.4;
+        return sc;
     }
 
     // ---------- complication text ----------
