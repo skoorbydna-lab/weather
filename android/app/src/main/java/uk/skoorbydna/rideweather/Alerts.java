@@ -162,7 +162,7 @@ public class Alerts {
         double[] ll = Weather.where(c);
         StringBuilder ids = new StringBuilder();
         for (String[] m : MODELS) { if (ids.length() > 0) ids.append(','); ids.append(m[0]); }
-        String url = String.format(Locale.UK, "%s?latitude=%.3f&longitude=%.3f&minutely_15=precipitation&forecast_minutely_15=6&past_minutely_15=1&timezone=auto&models=%s",
+        String url = String.format(Locale.UK, "%s?latitude=%.3f&longitude=%.3f&minutely_15=precipitation&forecast_minutely_15=7&past_minutely_15=1&timezone=auto&models=%s",
                 Weather.API, ll[0], ll[1], ids);
         JSONObject d = new JSONObject(Weather.get(url));
         long off = d.optLong("utc_offset_seconds", 0) * 1000, now = System.currentTimeMillis();
@@ -171,7 +171,8 @@ public class Alerts {
         List<Integer> idx = new ArrayList<>();
         long[] ms = new long[time.length()];
         for (int i = 0; i < time.length(); i++) {
-            ms[i] = LocalDateTime.parse(time.getString(i)).toEpochSecond(ZoneOffset.UTC) * 1000 - off;
+            // each value is the rain in the 15 minutes BEFORE its time, so the slot starts 15 min earlier
+            ms[i] = LocalDateTime.parse(time.getString(i)).toEpochSecond(ZoneOffset.UTC) * 1000 - off - 15 * 60_000L;
             if (ms[i] + 15 * 60_000L > now && ms[i] < now + 60 * 60_000L) idx.add(i);
         }
         int votes = 0, yes = 0;
@@ -209,7 +210,7 @@ public class Alerts {
 
         java.util.Collections.sort(firsts);
         int f = firsts.get((firsts.size() - 1) / 2);         // middle start time of the agreeing models
-        String when = ms[f] <= now ? "now" : "from about " + time.getString(f).substring(11, 16);
+        String when = ms[f] <= now ? "now" : "from about " + LocalDateTime.parse(time.getString(f)).minusMinutes(15).toString().substring(11, 16);
         String body = String.format(Locale.UK, "Rain %s – about %.1f mm in the next hour (%d of %d models agree).", when, total / yes, yes, votes);
         p.edit().putBoolean("raining", true).putLong("lastAlert", now).apply();
         notify(c, CH_RAIN, 1, "🌧 Rain coming", body);

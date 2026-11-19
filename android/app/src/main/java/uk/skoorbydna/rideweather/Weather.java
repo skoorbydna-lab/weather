@@ -48,7 +48,7 @@ public class Weather {
                 + "&current=temperature_2m,apparent_temperature,weather_code,is_day,wind_speed_10m,wind_direction_10m,wind_gusts_10m"
                 + "&daily=temperature_2m_max,temperature_2m_min&forecast_days=1");
         String rain = get(API + "?" + sLL + "&timezone=auto&minutely_15=precipitation&past_minutely_15=1&forecast_minutely_15="
-                + (SLOTS + 1) + "&models=" + String.join(",", RAIN_MODELS));
+                + (SLOTS + 2) + "&models=" + String.join(",", RAIN_MODELS));
         p.edit().putString("cNow", now).putString("cRain", rain).putString("cName", name)
                 .putLong("fetchedAt", System.currentTimeMillis()).apply();
     }
@@ -189,8 +189,9 @@ public class Weather {
                 int k = 0;
                 for (int i = 0; i < time.length() && k < SLOTS; i++) {
                     String t = time.getString(i);
+                    // each value is the rain in the 15 minutes BEFORE its time
                     long ms = LocalDateTime.parse(t).toEpochSecond(ZoneOffset.UTC) * 1000 - off;
-                    if (ms + 15 * 60_000L <= t0) continue;           // slot already over
+                    if (ms <= t0) continue;                           // slot already over
                     List<Double> vals = new ArrayList<>();
                     for (String mod : RAIN_MODELS) {
                         JSONArray a = m.optJSONArray("precipitation_" + mod);
@@ -201,7 +202,7 @@ public class Weather {
                         if (a != null && !a.isNull(i)) vals.add(a.optDouble(i));
                     }
                     d.rain[k] = agree(vals);
-                    d.times[k] = t.length() >= 16 ? t.substring(11, 16) : "";
+                    d.times[k] = LocalDateTime.parse(t).minusMinutes(15).toString().substring(11, 16);
                     k++;
                 }
             }
@@ -238,6 +239,25 @@ public class Weather {
         String from = first == 0 ? "Rain now" : "Rain from " + d.times[first];
         if (end > 0) return "🌧 " + from + " until " + d.times[end] + " · " + mm;
         return "🌧 " + from + " · " + mm + " in the next 3 h";
+    }
+
+    /** Same colours as the phone app's Raincast: green → yellow → orange → red (mm per hour). */
+    static final double[][] STOPS = {{0.1, 74, 222, 128}, {1, 163, 230, 53}, {2, 250, 204, 21}, {3.5, 249, 115, 22}, {5, 239, 68, 68}};
+    static final double RC_MAX = 6;
+
+    static int rainColour(double rate) {
+        double[] a = STOPS[0];
+        if (rate <= a[0]) return 0xFF000000 | ((int) a[1] << 16) | ((int) a[2] << 8) | (int) a[3];
+        for (int i = 1; i < STOPS.length; i++) {
+            double[] b = STOPS[i];
+            if (rate <= b[0]) {
+                double f = (rate - a[0]) / (b[0] - a[0]);
+                int r = (int) Math.round(a[1] + (b[1] - a[1]) * f), g = (int) Math.round(a[2] + (b[2] - a[2]) * f), bl = (int) Math.round(a[3] + (b[3] - a[3]) * f);
+                return 0xFF000000 | (r << 16) | (g << 8) | bl;
+            }
+            a = b;
+        }
+        return 0xFF000000 | ((int) a[1] << 16) | ((int) a[2] << 8) | (int) a[3];
     }
 
     static String words(int c) {

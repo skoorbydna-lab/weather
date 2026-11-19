@@ -186,10 +186,10 @@ public class RainWidget extends AppWidgetProvider {
                 bar.setColor(0x22FFFFFF);
                 cv.drawRoundRect(new RectF(x0, base - 2 * dens, x1, base), dens, dens, bar);
             } else {
-                double rate = mm * 4;                               // mm per hour
-                float frac = (float) Math.min(1, Math.sqrt(rate / 4)); // 4 mm/h fills the bar
+                double rate = mm * 4;                               // mm per hour, same scale as the app (0–6)
+                float frac = (float) (Math.min(rate, Weather.RC_MAX) / Weather.RC_MAX);
                 float y = base - Math.max(3 * dens, frac * (base - top));
-                bar.setColor(rate < 0.5 ? 0xFF93C5FD : rate < 2 ? 0xFF60A5FA : rate < 4 ? 0xFF3B82F6 : 0xFF6366F1);
+                bar.setColor(Weather.rainColour(rate));
                 cv.drawRoundRect(new RectF(x0, y, x1, base), 2 * dens, 2 * dens, bar);
             }
         }

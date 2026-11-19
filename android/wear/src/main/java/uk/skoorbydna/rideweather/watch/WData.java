@@ -117,7 +117,7 @@ public class WData {
                 + "&hourly=temperature_2m,weather_code,is_day,precipitation,precipitation_probability,wind_speed_10m,wind_direction_10m&forecast_hours=13"
                 + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunrise,sunset&forecast_days=4");
         String rain = get(API + "?" + ll + "&timezone=auto&minutely_15=precipitation&past_minutely_15=1&forecast_minutely_15="
-                + (SLOTS + 1) + "&models=" + String.join(",", RAIN_MODELS));
+                + (SLOTS + 2) + "&models=" + String.join(",", RAIN_MODELS));
         p.edit().putFloat("lat", (float) lat).putFloat("lon", (float) lon).putString("name", name)
                 .putString("cMain", main).putString("cRain", rain).putLong("fetchedAt", System.currentTimeMillis()).apply();
     }
@@ -217,15 +217,16 @@ public class WData {
                 int k = 0;
                 for (int i = 0; i < time.length() && k < SLOTS; i++) {
                     String ts = time.getString(i);
+                    // each value is the rain in the 15 minutes BEFORE its time
                     long ms = LocalDateTime.parse(ts).toEpochSecond(ZoneOffset.UTC) * 1000 - off;
-                    if (ms + 15 * 60_000L <= now) continue;
+                    if (ms <= now) continue;
                     List<Double> vals = new ArrayList<>();
                     for (String mod : RAIN_MODELS) {
                         JSONArray a = mm.optJSONArray("precipitation_" + mod);
                         if (a != null && !a.isNull(i)) vals.add(a.optDouble(i));
                     }
                     d.rain[k] = agree(vals);
-                    d.times[k] = ts.substring(11, 16);
+                    d.times[k] = LocalDateTime.parse(ts).minusMinutes(15).toString().substring(11, 16);
                     k++;
                 }
             }
@@ -319,10 +320,10 @@ public class WData {
                 bar.setColor(0x26FFFFFF);
                 cv.drawRoundRect(new RectF(x0, base - 2 * dens, x1, base), dens, dens, bar);
             } else {
-                double rate = mm * 4;
-                float frac = (float) Math.min(1, Math.sqrt(rate / 4));
+                double rate = mm * 4;                                   // mm per hour, same scale as the phone (0–6)
+                float frac = (float) (Math.min(rate, RC_MAX) / RC_MAX);
                 float y = base - Math.max(3 * dens, frac * (base - top));
-                bar.setColor(rate < 0.5 ? 0xFF93C5FD : rate < 2 ? 0xFF60A5FA : rate < 4 ? 0xFF3B82F6 : 0xFF818CF8);
+                bar.setColor(rainColour(rate));
                 cv.drawRoundRect(new RectF(x0, y, x1, base), 2 * dens, 2 * dens, bar);
             }
         }
@@ -332,6 +333,25 @@ public class WData {
             cv.drawText(t, i * slot + gap / 2, h - 2 * dens, text);
         }
         return b;
+    }
+
+    /** Same colours as the phone app's Raincast: green → yellow → orange → red (mm per hour). */
+    static final double[][] STOPS = {{0.1, 74, 222, 128}, {1, 163, 230, 53}, {2, 250, 204, 21}, {3.5, 249, 115, 22}, {5, 239, 68, 68}};
+    static final double RC_MAX = 6;
+
+    static int rainColour(double rate) {
+        double[] a = STOPS[0];
+        if (rate <= a[0]) return 0xFF000000 | ((int) a[1] << 16) | ((int) a[2] << 8) | (int) a[3];
+        for (int i = 1; i < STOPS.length; i++) {
+            double[] b = STOPS[i];
+            if (rate <= b[0]) {
+                double f = (rate - a[0]) / (b[0] - a[0]);
+                int r = (int) Math.round(a[1] + (b[1] - a[1]) * f), g = (int) Math.round(a[2] + (b[2] - a[2]) * f), bl = (int) Math.round(a[3] + (b[3] - a[3]) * f);
+                return 0xFF000000 | (r << 16) | (g << 8) | bl;
+            }
+            a = b;
+        }
+        return 0xFF000000 | ((int) a[1] << 16) | ((int) a[2] << 8) | (int) a[3];
     }
 
     static byte[] png(Bitmap b) {
