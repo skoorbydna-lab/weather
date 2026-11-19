@@ -313,6 +313,7 @@ html.fs-xl header .brand{gap:8px}
         <button class="btn sm" id="srvCheck">Check rain now</button>
       </div>
       <label class="switch"><input type="checkbox" id="srvOn"> Rain alerts on</label>
+      <label class="switch" id="stopRow" hidden><input type="checkbox" id="stopOn"> Tell me when rain is about to stop</label>
       <label class="switch"><input type="checkbox" id="shareLoc"> Send my location whenever this app is open</label>
       <div class="row">Alert if ≥
         <select id="alertThresh" class="btn sm">
@@ -1440,13 +1441,13 @@ function sendLocation(force){
 const IN_APP = !!window.RideWeatherAndroid;
 const appMode = () => IN_APP && store.get('appNoti', false);
 function alertForm(){
-  return {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value, summary:$('sumOn').checked, summaryHour:+$('sumHour').value, evening:$('eveOn').checked, eveningHour:+$('eveHour').value, warnAlerts:$('warnOn').checked, warnRegion:$('warnRegion').value};
+  return {enabled:$('srvOn').checked, thresh:+$('alertThresh').value, quietStart:+$('qStart').value, quietEnd:+$('qEnd').value, agree:+$('agree').value, summary:$('sumOn').checked, summaryHour:+$('sumHour').value, evening:$('eveOn').checked, eveningHour:+$('eveHour').value, warnAlerts:$('warnOn').checked, warnRegion:$('warnRegion').value, stopAlerts:$('stopOn').checked};
 }
 function fillAlertForm(s){
   $('srvOn').checked = s.enabled !== false; $('alertThresh').value = String(s.thresh || 0.1);
   $('qStart').value = String(s.quietStart ?? 22); $('qEnd').value = String(s.quietEnd ?? 6); $('agree').value = String(s.agree || 2);
   $('sumOn').checked = s.summary !== false; $('sumHour').value = String(s.summaryHour || 7); $('eveOn').checked = s.evening !== false;
-  $('eveHour').value = String(s.eveningHour || 17); $('warnOn').checked = s.warnAlerts !== false; $('warnRegion').value = s.warnRegion || 'auto';
+  $('eveHour').value = String(s.eveningHour || 17); $('warnOn').checked = s.warnAlerts !== false; $('warnRegion').value = s.warnRegion || 'auto'; $('stopOn').checked = s.stopAlerts !== false;
 }
 function tellAndroidAlerts(){
   if(!IN_APP) return;
@@ -2082,16 +2083,18 @@ $('srvCheck').onclick = async () => { if(appMode()) return appRun('check', 'Chec
   try{ const r = await srv('/check'); showSrvState(r.dry ? `Checked: dry for the next hour${r.models?' ('+r.models+')':''} – notification sent` : r.alerted ? `Checked: rain due (${r.agreeing} models agree) – alert sent` : (r.skipped || r.error || 'Checked'), 'okc'); }
   catch(e){ showSrvState(`Check failed (${e.message})`, 'err'); }
 };
-['srvOn','alertThresh','qStart','qEnd','agree','sumOn','sumHour','eveOn','eveHour','warnOn'].forEach(id => $(id).onchange = pushSettings);
+['srvOn','alertThresh','qStart','qEnd','agree','sumOn','sumHour','eveOn','eveHour','warnOn','stopOn'].forEach(id => $(id).onchange = pushSettings);
 if(!IN_APP) $('whereRun').textContent = '🌐 Web version (browser) – alerts here go through your alert server and Pushover';
 if(IN_APP){
   $('appNotiRow').hidden = false;
+  $('stopRow').hidden = !appMode();
+  $('stopOn').checked = store.get('appAlerts', {}).stopAlerts !== false;
   $('autoFs').closest('label').hidden = true;
   let ver = ''; try{ ver = RideWeatherAndroid.version(); }catch(e){}
   $('whereRun').textContent = '📱 Ride Weather Android app' + (ver ? ' ' + ver : '');
   $('appNoti').checked = appMode();
   $('appNoti').onchange = async e => {
-    store.set('appNoti', e.target.checked);
+    store.set('appNoti', e.target.checked); $('stopRow').hidden = !e.target.checked;
     if(e.target.checked){ if(!S.srvState) fillAlertForm(store.get('appAlerts', {})); store.set('appAlerts', alertForm()); await pushSettings(); }
     else{ tellAndroidAlerts(); showSrvState(srvOK() ? 'App notifications off – the alert server (Pushover) will send them again' : 'App notifications off', 'okc'); if(srvOK()) try{ await srv('/settings', alertForm()); }catch(_){} }
   };

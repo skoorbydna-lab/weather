@@ -37,7 +37,7 @@ public class Alerts {
 
     // ---------- settings (sent from the web page) ----------
     static class Settings {
-        boolean on, enabled = true, summary = true, evening = true, warn = true;
+        boolean on, enabled = true, summary = true, evening = true, warn = true, stop = true;
         double thresh = 0.1;
         int agree = 2, summaryHour = 7, eveningHour = 17, quietStart = 22, quietEnd = 6;
         String region = "auto";
@@ -56,6 +56,7 @@ public class Alerts {
             s.evening = o.optBoolean("evening", true);
             s.eveningHour = o.optInt("eveningHour", 17);
             s.warn = o.optBoolean("warnAlerts", true);
+            s.stop = o.optBoolean("stopAlerts", true);
             s.region = o.optString("warnRegion", "auto");
             s.quietStart = o.optInt("quietStart", 22);
             s.quietEnd = o.optInt("quietEnd", 6);
@@ -157,12 +158,16 @@ public class Alerts {
         Settings s = settings(c);
         if (!force && (!s.on || !s.enabled)) return "alerts off";
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-        if (!force && inQuiet(hour, s.quietStart, s.quietEnd)) return "quiet hours";
+        if (!force && inQuiet(hour, s.quietStart, s.quietEnd)) {
+            // overnight: forget "it's raining", so the first rain of the morning always gets an alert
+            Weather.prefs(c).edit().putBoolean("raining", false).putBoolean("stopSent", false).apply();
+            return "quiet hours";
+        }
 
         double[] ll = Weather.where(c);
         StringBuilder ids = new StringBuilder();
         for (String[] m : MODELS) { if (ids.length() > 0) ids.append(','); ids.append(m[0]); }
-        String url = String.format(Locale.UK, "%s?latitude=%.3f&longitude=%.3f&minutely_15=precipitation&forecast_minutely_15=7&past_minutely_15=1&timezone=auto&models=%s",
+        String url = String.format(Locale.UK, "%s?latitude=%.3f&longitude=%.3f&minutely_15=precipitation&forecast_minutely_15=8&past_minutely_15=1&timezone=auto&models=%s",
                 Weather.API, ll[0], ll[1], ids);
         JSONObject d = new JSONObject(Weather.get(url));
         long off = d.optLong("utc_offset_seconds", 0) * 1000, now = System.currentTimeMillis();
@@ -206,15 +211,45 @@ public class Alerts {
             if (force) notify(c, CH_RAIN, 1, "Dry for the next hour", "No rain expected in the next hour (" + sum + ").");
             return "dry (" + sum + ")";
         }
-        if (!force && (p.getBoolean("raining", false) || now - p.getLong("lastAlert", 0) < 45 * 60_000L)) return "already alerted";
+        if (!force && (p.getBoolean("raining", false) || now - p.getLong("lastAlert", 0) < 45 * 60_000L)) {
+            String st = stoppingSoon(c, s, p, m, time, ms, now);
+            return st != null ? st : "already alerted";
+        }
 
         java.util.Collections.sort(firsts);
         int f = firsts.get((firsts.size() - 1) / 2);         // middle start time of the agreeing models
         String when = ms[f] <= now ? "now" : "from about " + LocalDateTime.parse(time.getString(f)).minusMinutes(15).toString().substring(11, 16);
         String body = String.format(Locale.UK, "Rain %s – about %.1f mm in the next hour (%d of %d models agree).", when, total / yes, yes, votes);
-        p.edit().putBoolean("raining", true).putLong("lastAlert", now).apply();
+        p.edit().putBoolean("raining", true).putBoolean("stopSent", false).putLong("lastAlert", now).apply();
         notify(c, CH_RAIN, 1, "🌧 Rain coming", body);
         return "rain alert sent";
+    }
+
+    /** While it's raining: one "rain stopping soon" alert when the models agree it'll be dry within the hour for at least 30 min. */
+    static String stoppingSoon(Context c, Settings s, SharedPreferences p, JSONObject m, JSONArray time, long[] ms, long now) throws Exception {
+        if (!s.stop || !p.getBoolean("raining", false) || p.getBoolean("stopSent", false)) return null;
+        List<Integer> ahead = new ArrayList<>();
+        for (int i = 0; i < ms.length; i++) if (ms[i] + 15 * 60_000L > now) ahead.add(i);
+        if (ahead.size() < 3) return null;
+        List<double[]> arrs = new ArrayList<>();
+        for (String[] mod : MODELS) { double[] a = arr(m, "precipitation_" + mod[0]); if (a != null) arrs.add(a); }
+        double[] ag = new double[ahead.size()];
+        for (int k = 0; k < ag.length; k++) {
+            List<Double> v = new ArrayList<>();
+            for (double[] a : arrs) if (!Double.isNaN(a[ahead.get(k)])) v.add(a[ahead.get(k)]);
+            ag[k] = Weather.agree(v);
+        }
+        if (Double.isNaN(ag[0]) || ag[0] < s.thresh) return null;                 // not raining right now
+        for (int k = 1; k <= 4 && k + 1 < ag.length; k++) {
+            boolean dry = !Double.isNaN(ag[k]) && ag[k] < s.thresh && !Double.isNaN(ag[k + 1]) && ag[k + 1] < s.thresh;
+            if (dry) {
+                String at = LocalDateTime.parse(time.getString(ahead.get(k))).minusMinutes(15).toString().substring(11, 16);
+                p.edit().putBoolean("stopSent", true).apply();
+                notify(c, CH_RAIN, 4, "🌤 Rain stopping soon", "Should be dry from about " + at + " (in about " + (k * 15) + " min).");
+                return "stopping-soon alert sent";
+            }
+        }
+        return null;
     }
 
     // ---------- morning / evening summary ----------
