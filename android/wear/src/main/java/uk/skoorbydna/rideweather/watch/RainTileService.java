@@ -60,7 +60,7 @@ public class RainTileService extends TileService {
         WData d = WData.load(this);
         if (d != null) {
             float dens = getResources().getDisplayMetrics().density;
-            int as = Math.round(24 * dens), rs = Math.round(screenDp(req.getDeviceConfiguration()) * dens);
+            int as = Math.round(24 * dens), rs = Math.max(Math.round(screenDp(req.getDeviceConfiguration()) * dens), 480);
             b.addIdToImageMapping("ring", image(WData.png(WData.ring(rs, dens, d)), rs, rs));
             b.addIdToImageMapping("arrow", image(WData.png(WData.arrow(as, d.dir, WData.windColour(d.wind))), as, as));
         }
@@ -120,8 +120,7 @@ public class RainTileService extends TileService {
             col.addContent(text(d.desc, 12, 0xFFDDE7FA, false));
             col.addContent(gap(6));
             col.addContent(text(d.shortRainLine(), 14, d.wetSoon() ? 0xFF7DB8FF : 0xFF4ADE80, true));
-            col.addContent(gap(2));
-            col.addContent(text("next hour round the edge", 10, 0xFF9FB2D6, false));
+
         }
         ModifiersBuilders.Clickable open = new ModifiersBuilders.Clickable.Builder()
                 .setId("open")
@@ -139,7 +138,8 @@ public class RainTileService extends TileService {
                 .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
                 .setModifiers(new ModifiersBuilders.Modifiers.Builder().setClickable(open).build());
         if (d != null) box.addContent(new LayoutElementBuilders.Image.Builder().setResourceId("ring")
-                .setWidth(DimensionBuilders.dp(screen)).setHeight(DimensionBuilders.dp(screen)).build());
+                .setWidth(DimensionBuilders.expand()).setHeight(DimensionBuilders.expand())
+                .setContentScaleMode(LayoutElementBuilders.CONTENT_SCALE_MODE_FIT).build());
         return box.addContent(col.build()).build();
     }
 }
