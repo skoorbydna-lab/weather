@@ -247,6 +247,10 @@ header .cdate{color:#cfe0ff;font-size:.78rem}
 header .ctime{font-size:1.65rem;line-height:1.05;letter-spacing:-.01em}
 header .csun{color:#cfe0ff;font-size:.72rem;margin-top:2px}
 header .search{grid-column:1/-1}
+.nowhilo{margin-top:4px;font-size:1rem;font-weight:700}
+.nowhilo .hi{color:#fca5a5}
+.nowhilo .lo{color:#93c5fd;margin-left:.5em}
+.nowhilo .muted{font-weight:500;font-size:.8rem;margin-left:.4em}
 header{position:relative;z-index:50}
 .results{z-index:60}
 html.fs-l header .appname{font-size:1.15rem}
@@ -356,6 +360,7 @@ html.fs-xl header .brand{gap:8px}
       <div class="nowMain">
         <div class="row" style="gap:.4rem;flex-wrap:nowrap"><span class="bigicon" id="nowIcon"></span><span class="bigtemp" id="nowTemp">–</span></div>
         <div class="muted" id="nowDesc"></div>
+        <div class="nowhilo" id="nowHiLo"></div>
       </div>
       <div class="nowWind">
         <svg class="compass" id="compass" viewBox="0 0 120 120"></svg>
@@ -661,6 +666,9 @@ function renderNow(){
   $('nowIcon').innerHTML = WI(c.weather_code, c.is_day ?? 1, 84);
   $('nowTemp').textContent = `${Math.round(c.temperature_2m)}°`;
   $('nowDesc').textContent = `${desc} · feels ${Math.round(c.apparent_temperature)}°`;
+  const dd = S.main.daily, di = dd && dd.time ? dd.time.indexOf(String(c.time || '').slice(0,10)) : -1;
+  $('nowHiLo').innerHTML = di >= 0 && dd.temperature_2m_max[di] != null
+    ? `<span class="hi">↑ ${Math.round(dd.temperature_2m_max[di])}°</span> <span class="lo">↓ ${Math.round(dd.temperature_2m_min[di])}°</span> <span class="muted">today</span>` : '';
   $('nowWind').innerHTML = `<span style="color:${windColour(c.wind_speed_10m)}">${fmtSpd(c.wind_speed_10m)} ${S.unit}</span> ${dirName(c.wind_direction_10m)}`;
   $('nowGust').textContent = `gusts ${fmtSpd(c.wind_gusts_10m)}`;
   drawCompass(c.wind_direction_10m, c.wind_speed_10m);
